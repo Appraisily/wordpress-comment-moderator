@@ -1,0 +1,5 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [ 'build', '-t', 'gcr.io/TU_PROJECT_ID/wordpress-comment-moderator', '.' ]
+options:
+  logging: CLOUD_LOGGING_ONLY
