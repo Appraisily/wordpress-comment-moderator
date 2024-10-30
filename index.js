@@ -8,6 +8,11 @@ app.use(bodyParser.json());
 
 app.post('/webhook', async (req, res) => {
   try {
+    const sharedSecret = req.headers['x-shared-secret'];
+    if (sharedSecret !== config.SHARED_SECRET) {
+      return res.status(403).send('No autorizado');
+    }
+
     const commentData = req.body;
     await commentService.handleNewComment(commentData);
     res.status(200).send('Comentario procesado.');
@@ -16,6 +21,7 @@ app.post('/webhook', async (req, res) => {
     res.status(500).send('Error interno del servidor.');
   }
 });
+
 
 initializeConfig().then(() => {
   const PORT = process.env.PORT || 8080;
