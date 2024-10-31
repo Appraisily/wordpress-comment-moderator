@@ -22,7 +22,6 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-
 initializeConfig().then(() => {
   const PORT = process.env.PORT || 8080;
   app.listen(PORT, () => {
