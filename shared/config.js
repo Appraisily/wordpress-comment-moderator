@@ -31,7 +31,7 @@ console.log('GOOGLE_CLOUD_PROJECT_ID obtenido correctamente:', projectId);
     console.log('CLOUD_RUN_WEBHOOK_URL definido directamente en el código.');
 
     // Definir parámetros de procesamiento por lotes como constantes
-    config.BATCH_SIZE = 100; // Número de comentarios por lote
+    config.BATCH_SIZE = 10; // Número de comentarios por lote
     config.DELAY_BETWEEN_COMMENTS = 500; // Milisegundos de pausa entre comentarios
     config.DELAY_BETWEEN_BATCHES = 60000; // Milisegundos de pausa entre lotes (60 segundos)
 
