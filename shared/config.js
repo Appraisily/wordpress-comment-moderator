@@ -1,3 +1,4 @@
+// shared/config.js
 const { getSecret } = require('./secretManager');
 
 const config = {};
@@ -11,6 +12,9 @@ async function initializeConfig() {
 
     config.OPENAI_API_KEY = (await getSecret('OPENAI_API_KEY')).trim();
     console.log('OPENAI_API_KEY obtenido exitosamente.');
+
+    config.SHARED_SECRET = (await getSecret('SHARED_SECRET')).trim();
+    console.log('SHARED_SECRET obtenido exitosamente.');
 
     // Añade otras configuraciones si es necesario
   } catch (error) {
