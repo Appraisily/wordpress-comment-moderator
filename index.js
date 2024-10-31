@@ -2,16 +2,35 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const { initializeConfig, config } = require('./shared/config');
 const commentService = require('./services/commentService');
+const crypto = require('crypto');
 
 const app = express();
 app.use(bodyParser.json());
 
 app.post('/webhook', async (req, res) => {
   try {
-    const sharedSecret = req.headers['x-shared-secret'];
-    if (sharedSecret !== config.SHARED_SECRET) {
+    const incomingSecret = req.headers['x-shared-secret'];
+
+    if (!incomingSecret || !config.SHARED_SECRET) {
+      console.warn('No se proporcionó el Shared Secret.');
       return res.status(403).send('No autorizado');
     }
+
+    const incomingSecretBuffer = Buffer.from(incomingSecret);
+    const storedSecretBuffer = Buffer.from(config.SHARED_SECRET);
+
+    // Asegurar que ambos buffers tienen la misma longitud
+    if (incomingSecretBuffer.length !== storedSecretBuffer.length) {
+      console.warn('Longitud del Shared Secret no coincide.');
+      return res.status(403).send('No autorizado');
+    }
+
+    if (!crypto.timingSafeEqual(incomingSecretBuffer, storedSecretBuffer)) {
+      console.warn('Shared Secret inválido.');
+      return res.status(403).send('No autorizado');
+    }
+
+    console.log('Shared Secret verificado correctamente.');
 
     const commentData = req.body;
     await commentService.handleNewComment(commentData);
