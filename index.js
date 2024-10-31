@@ -53,6 +53,11 @@ app.post('/process-batch', async (req, res) => {
     // Obtener Comentarios No Procesados
     const comments = await commentService.getUnprocessedComments(BATCH_SIZE);
 
+    if (!Array.isArray(comments)) {
+      console.error('La variable comments no es un arreglo:', comments);
+      return res.status(500).send('Error interno del servidor.');
+    }
+
     if (comments.length === 0) {
       console.log('No hay comentarios pendientes de procesar.');
       return res.status(200).send('No hay comentarios pendientes de procesar.');
@@ -60,33 +65,13 @@ app.post('/process-batch', async (req, res) => {
 
     console.log(`Procesando un lote de ${comments.length} comentarios.`);
 
-    // Procesar Cada Comentario
-    for (const comment of comments) {
-      await sendCommentToWebhook(comment);
-      await commentService.markCommentAsProcessed(comment.id);
-      await delay(DELAY_BETWEEN_COMMENTS);
-    }
-
-    console.log(`Lote de ${comments.length} comentarios procesados correctamente.`);
-
-    // Responder al cliente
-    res.status(200).send(`Lote de ${comments.length} comentarios procesados correctamente.`);
-
-    // Opcional: Invocar el endpoint nuevamente después de un delay para procesar el siguiente lote
-    setTimeout(async () => {
-      try {
-        await axios.post(`${req.protocol}://${req.get('host')}/process-batch`);
-        console.log('Invocada la siguiente ronda de procesamiento por lotes.');
-      } catch (error) {
-        console.error('Error al invocar el siguiente lote de procesamiento:', error.message);
-      }
-    }, DELAY_BETWEEN_BATCHES);
-
+    // Resto del código...
   } catch (error) {
     console.error('Error al procesar el lote de comentarios:', error);
     res.status(500).send('Error interno del servidor.');
   }
 });
+
 
 // Función para Enviar Comentario al Webhook
 async function sendCommentToWebhook(comment) {
