@@ -184,23 +184,25 @@ async function markCommentAsSpam(commentId) {
 // Obtener comentarios no procesados para procesamiento por lotes
 async function getUnprocessedComments(batchSize) {
   try {
-    const response = await axios.get(config.WORDPRESS_API_URL, {
+    const apiUrl = `${config.WORDPRESS_API_URL}/wp-json/wp/v2/comments`;
+    const response = await axios.get(apiUrl, {
       params: {
         status: 'approve',
         per_page: batchSize,
-        // Si tienes un campo personalizado para marcar procesados, puedes agregar filtros aquí
-        // Por ejemplo: meta_key=processed&meta_value=false
+        // Agrega aquí filtros adicionales si es necesario
       },
       auth: {
         username: config.WORDPRESS_USERNAME,
         password: config.WORDPRESS_APP_PASSWORD,
       },
-      timeout: 10000, // Tiempo máximo de espera por respuesta
+      timeout: 10000,
     });
+
+    console.log('Comentarios obtenidos:', response.data);
 
     return response.data;
   } catch (error) {
-    console.error('Error al obtener comentarios no procesados:', error.message);
+    console.error('Error al obtener comentarios no procesados:', error.response ? error.response.data : error.message);
     return [];
   }
 }
