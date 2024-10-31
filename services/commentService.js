@@ -118,7 +118,7 @@ async function postResponse(responseText, postId, parentId) {
     console.log(`Respuesta publicada exitosamente en el comentario ID ${parentId}. Código de estado: ${response.status}`);
   } catch (error) {
     if (error.response) {
-      console.error(`Error al publicar la respuesta en WordPress. Código de estado: ${error.response.status}. Mensaje: ${error.response.data}`);
+      console.error(`Error al publicar la respuesta en WordPress. Código de estado: ${error.response.status}. Mensaje: ${JSON.stringify(error.response.data)}`);
     } else {
       console.error('Error al publicar la respuesta en WordPress:', error.message);
     }
@@ -145,7 +145,7 @@ async function markCommentAsSpam(commentId) {
     console.log(`Comentario ID ${commentId} marcado como spam exitosamente. Código de estado: ${response.status}`);
   } catch (error) {
     if (error.response) {
-      console.error(`Error al marcar el comentario como spam. Código de estado: ${error.response.status}. Mensaje: ${error.response.data}`);
+      console.error(`Error al marcar el comentario como spam. Código de estado: ${error.response.status}. Mensaje: ${JSON.stringify(error.response.data)}`);
     } else {
       console.error('Error al marcar el comentario como spam:', error.message);
     }
@@ -199,7 +199,7 @@ async function markCommentAsProcessed(commentId) {
     console.log(`Comentario ID ${commentId} marcado como procesado exitosamente. Código de estado: ${response.status}`);
   } catch (error) {
     if (error.response) {
-      console.error(`Error al marcar el comentario ${commentId} como procesado. Código de estado: ${error.response.status}. Mensaje: ${error.response.data}`);
+      console.error(`Error al marcar el comentario ${commentId} como procesado. Código de estado: ${error.response.status}. Mensaje: ${JSON.stringify(error.response.data)}`);
     } else {
       console.error(`Error al marcar el comentario ${commentId} como procesado:`, error.message);
     }
