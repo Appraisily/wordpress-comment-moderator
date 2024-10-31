@@ -9,10 +9,10 @@ async function initializeConfig() {
     // Inicializar el cliente de Secret Manager
     const client = new SecretManagerServiceClient();
     
-    // Obtener el Project ID automáticamente
-    const [projectId] = await client.getProjectId();
-    config.GOOGLE_CLOUD_PROJECT_ID = projectId;
-    console.log('GOOGLE_CLOUD_PROJECT_ID obtenido correctamente.');
+const projectId = process.env.GOOGLE_CLOUD_PROJECT;
+config.GOOGLE_CLOUD_PROJECT_ID = projectId;
+console.log('GOOGLE_CLOUD_PROJECT_ID obtenido correctamente:', projectId);
+
 
     // Obtener otros secretos utilizando el Project ID
     config.WORDPRESS_USERNAME = (await getSecret(projectId, 'wp_username')).trim();
