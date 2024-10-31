@@ -1,10 +1,14 @@
-// shared/config.js
 const { getSecret } = require('./secretManager');
 
 const config = {};
 
 async function initializeConfig() {
   try {
+    // Obtener el project ID primero
+    config.GOOGLE_CLOUD_PROJECT_ID = (await getSecret('GOOGLE_CLOUD_PROJECT_ID')).trim();
+    console.log('GOOGLE_CLOUD_PROJECT_ID obtenido exitosamente.');
+
+    // Luego, obtener otros secretos utilizando el project ID
     config.WORDPRESS_USERNAME = (await getSecret('wp_username')).trim();
     config.WORDPRESS_APP_PASSWORD = (await getSecret('wp_app_password')).trim();
     config.WORDPRESS_API_URL = (await getSecret('WORDPRESS_API_URL')).trim();
