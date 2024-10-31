@@ -19,7 +19,6 @@ app.post('/webhook', async (req, res) => {
     const incomingSecretBuffer = Buffer.from(incomingSecret);
     const storedSecretBuffer = Buffer.from(config.SHARED_SECRET);
 
-    // Asegurar que ambos buffers tienen la misma longitud
     if (incomingSecretBuffer.length !== storedSecretBuffer.length) {
       console.warn('Longitud del Shared Secret no coincide.');
       return res.status(403).send('No autorizado');
