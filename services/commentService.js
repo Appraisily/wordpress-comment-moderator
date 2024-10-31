@@ -184,12 +184,15 @@ async function markCommentAsSpam(commentId) {
 // Obtener comentarios no procesados para procesamiento por lotes
 async function getUnprocessedComments(batchSize) {
   try {
-    const apiUrl = `${config.WORDPRESS_API_URL}/wp-json/wp/v2/comments`;
+    const baseUrl = config.WORDPRESS_API_URL.replace(/\/$/, '');
+    const apiUrl = `${baseUrl}/wp-json/wp/v2/comments`;
+
+    console.log('Solicitando comentarios desde URL:', apiUrl);
+
     const response = await axios.get(apiUrl, {
       params: {
         status: 'approve',
         per_page: batchSize,
-        // Agrega aquí filtros adicionales si es necesario
       },
       auth: {
         username: config.WORDPRESS_USERNAME,
@@ -198,14 +201,26 @@ async function getUnprocessedComments(batchSize) {
       timeout: 10000,
     });
 
-    console.log('Comentarios obtenidos:', response.data);
+    console.log('Código de estado HTTP:', response.status);
+    console.log('Datos de respuesta:', response.data);
 
-    return response.data;
+    if (Array.isArray(response.data)) {
+      return response.data;
+    } else {
+      console.error('Formato de respuesta inesperado:', response.data);
+      return [];
+    }
   } catch (error) {
-    console.error('Error al obtener comentarios no procesados:', error.response ? error.response.data : error.message);
+    if (error.response) {
+      console.error('Código de estado de error:', error.response.status);
+      console.error('Datos de error:', error.response.data);
+    } else {
+      console.error('Mensaje de error:', error.message);
+    }
     return [];
   }
 }
+
 
 // Marcar un comentario como procesado en WordPress
 async function markCommentAsProcessed(commentId) {
