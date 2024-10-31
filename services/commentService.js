@@ -185,7 +185,7 @@ async function markCommentAsSpam(commentId) {
 async function getUnprocessedComments(batchSize) {
   try {
     const baseUrl = config.WORDPRESS_API_URL.replace(/\/$/, '');
-    const apiUrl = `${baseUrl}/wp-json/wp/v2/comments`;
+const apiUrl = `${config.WORDPRESS_API_URL}/comments`;
 
     console.log('Solicitando comentarios desde URL:', apiUrl);
 
