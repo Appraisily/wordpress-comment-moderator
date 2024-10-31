@@ -3,6 +3,7 @@ const { Configuration, OpenAIApi } = require('openai');
 const { config } = require('../shared/config');
 const crypto = require('crypto');
 
+// Manejar un nuevo comentario
 async function handleNewComment(commentData) {
   const { content, id, post } = commentData;
 
@@ -30,6 +31,7 @@ async function handleNewComment(commentData) {
   }
 }
 
+// Clasificar el comentario usando OpenAI
 async function classifyComment(commentText) {
   const configuration = new Configuration({
     apiKey: config.OPENAI_API_KEY,
@@ -64,6 +66,7 @@ Clasificación:`;
   }
 }
 
+// Generar una respuesta para el comentario usando OpenAI
 async function generateResponse(commentText) {
   const configuration = new Configuration({
     apiKey: config.OPENAI_API_KEY,
@@ -88,6 +91,7 @@ async function generateResponse(commentText) {
   }
 }
 
+// Publicar la respuesta en WordPress
 async function postResponse(responseText, postId, parentId) {
   if (!responseText) {
     console.error('No se pudo generar una respuesta.');
@@ -121,6 +125,7 @@ async function postResponse(responseText, postId, parentId) {
   }
 }
 
+// Marcar el comentario como spam en WordPress
 async function markCommentAsSpam(commentId) {
   const auth = Buffer.from(`${config.WORDPRESS_USERNAME}:${config.WORDPRESS_APP_PASSWORD}`).toString('base64');
   const apiUrl = `${config.WORDPRESS_API_URL}/wp-json/wp/v2/comments/${commentId}`;
@@ -147,6 +152,62 @@ async function markCommentAsSpam(commentId) {
   }
 }
 
+// Obtener comentarios no procesados para procesamiento por lotes
+async function getUnprocessedComments(batchSize) {
+  try {
+    const response = await axios.get(config.WORDPRESS_API_URL, {
+      params: {
+        status: 'approve',
+        per_page: batchSize,
+        // Si tienes un campo personalizado para marcar procesados, puedes agregar filtros aquí
+        // Por ejemplo: meta_key=processed&meta_value=false
+      },
+      auth: {
+        username: config.WORDPRESS_USERNAME,
+        password: config.WORDPRESS_APP_PASSWORD,
+      },
+      timeout: 10000, // Tiempo máximo de espera por respuesta
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener comentarios no procesados:', error.message);
+    return [];
+  }
+}
+
+// Marcar un comentario como procesado en WordPress
+async function markCommentAsProcessed(commentId) {
+  const auth = Buffer.from(`${config.WORDPRESS_USERNAME}:${config.WORDPRESS_APP_PASSWORD}`).toString('base64');
+  const apiUrl = `${config.WORDPRESS_API_URL}/${commentId}`;
+
+  const data = {
+    meta: {
+      processed: true, // Asegúrate de que tu WordPress soporte metadatos personalizados para comentarios
+    },
+  };
+
+  try {
+    const response = await axios.post(apiUrl, data, {
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'Content-Type': 'application/json',
+      },
+      timeout: 5000,
+    });
+
+    console.log(`Comentario ID ${commentId} marcado como procesado exitosamente. Código de estado: ${response.status}`);
+  } catch (error) {
+    if (error.response) {
+      console.error(`Error al marcar el comentario ${commentId} como procesado. Código de estado: ${error.response.status}. Mensaje: ${error.response.data}`);
+    } else {
+      console.error(`Error al marcar el comentario ${commentId} como procesado:`, error.message);
+    }
+  }
+}
+
 module.exports = {
   handleNewComment,
+  getUnprocessedComments,
+  markCommentAsProcessed,
 };
