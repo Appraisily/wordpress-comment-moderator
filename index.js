@@ -100,7 +100,7 @@ async function sendCommentToWebhook(comment) {
     });
 
     if (response.status !== 200) {
-      throw new Error(`Respuesta no exitosa: ${response.status} - ${response.data}`);
+      throw new Error(`Respuesta no exitosa: ${response.status} - ${JSON.stringify(response.data)}`);
     }
 
     console.log(`Comentario ${comment.id} procesado correctamente.`);
