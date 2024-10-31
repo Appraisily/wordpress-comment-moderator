@@ -1,27 +1,32 @@
 const axios = require('axios');
 const { Configuration, OpenAIApi } = require('openai');
 const { config } = require('../shared/config');
+const crypto = require('crypto');
 
 async function handleNewComment(commentData) {
-  // Extraer el contenido del comentario
   const { content, id, post } = commentData;
 
-  // Clasificar el comentario como "Correcto" o "Spam"
+  console.log(`Procesando comentario ID: ${id} en el post ID: ${post}`);
+
   const classification = await classifyComment(content.rendered);
 
+  console.log(`Clasificación del comentario ID ${id}: ${classification}`);
+
   if (classification === 'Spam') {
-    // Marcar el comentario como spam
     await markCommentAsSpam(id);
+    console.log(`Comentario ID ${id} marcado como spam.`);
     return;
   } else if (classification === 'Correcto') {
-    // Generar una respuesta que incentive la compra
     const response = await generateResponse(content.rendered);
 
-    // Publicar la respuesta en WordPress
-    await postResponse(response, post, id);
+    if (response) {
+      await postResponse(response, post, id);
+      console.log(`Respuesta generada y publicada para comentario ID ${id}.`);
+    } else {
+      console.error(`No se pudo generar una respuesta para el comentario ID ${id}.`);
+    }
   } else {
-    console.error('Clasificación desconocida:', classification);
-    // Opcional: manejar casos donde la clasificación no es "Correcto" o "Spam"
+    console.error(`Clasificación desconocida para el comentario ID ${id}: ${classification}`);
   }
 }
 
@@ -42,23 +47,20 @@ Clasificación:`;
       model: 'gpt-3.5-turbo',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0,
-      max_tokens: 1,
+      max_tokens: 6, // Aumentado para evitar truncamiento
     });
 
     const classification = completion.data.choices[0].message.content.trim();
 
-    // Asegurar que la clasificación es "Correcto" o "Spam"
     if (classification === 'Correcto' || classification === 'Spam') {
       return classification;
     } else {
-      console.error('Respuesta inesperada de clasificación:', classification);
-      // Opcional: decidir qué hacer en este caso
+      console.error(`Respuesta inesperada de clasificación: "${classification}"`);
       return 'Spam'; // Por defecto, marcar como Spam si la respuesta es inesperada
     }
   } catch (error) {
     console.error('Error al clasificar el comentario:', error);
-    // Opcional: manejar el error, por ejemplo, marcar como Spam o reintentar
-    return 'Spam';
+    return 'Spam'; // Marcar como Spam en caso de error
   }
 }
 
@@ -82,7 +84,6 @@ async function generateResponse(commentText) {
     return response;
   } catch (error) {
     console.error('Error al generar la respuesta:', error);
-    // Opcional: manejar el error
     return '';
   }
 }
@@ -103,15 +104,20 @@ async function postResponse(responseText, postId, parentId) {
   };
 
   try {
-    await axios.post(apiUrl, data, {
+    const response = await axios.post(apiUrl, data, {
       headers: {
         'Authorization': `Basic ${auth}`,
         'Content-Type': 'application/json',
       },
     });
+
+    console.log(`Respuesta publicada exitosamente en el comentario ID ${parentId}. Código de estado: ${response.status}`);
   } catch (error) {
-    console.error('Error al publicar la respuesta en WordPress:', error);
-    // Opcional: manejar el error
+    if (error.response) {
+      console.error(`Error al publicar la respuesta en WordPress. Código de estado: ${error.response.status}. Mensaje: ${error.response.data}`);
+    } else {
+      console.error('Error al publicar la respuesta en WordPress:', error.message);
+    }
   }
 }
 
@@ -124,15 +130,20 @@ async function markCommentAsSpam(commentId) {
   };
 
   try {
-    await axios.post(apiUrl, data, {
+    const response = await axios.put(apiUrl, data, { // Usar PUT es más claro para actualizaciones
       headers: {
         'Authorization': `Basic ${auth}`,
         'Content-Type': 'application/json',
       },
     });
+
+    console.log(`Comentario ID ${commentId} marcado como spam exitosamente. Código de estado: ${response.status}`);
   } catch (error) {
-    console.error('Error al marcar el comentario como spam:', error);
-    // Opcional: manejar el error
+    if (error.response) {
+      console.error(`Error al marcar el comentario como spam. Código de estado: ${error.response.status}. Mensaje: ${error.response.data}`);
+    } else {
+      console.error('Error al marcar el comentario como spam:', error.message);
+    }
   }
 }
 
