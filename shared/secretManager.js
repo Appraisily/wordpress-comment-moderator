@@ -3,7 +3,7 @@ const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
 const client = new SecretManagerServiceClient();
 
 async function getSecret(name) {
-  const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || 'tu-project-id';
+  const projectId = await client.getProjectId(); // Auto-detecta el ID del proyecto
   const [version] = await client.accessSecretVersion({
     name: `projects/${projectId}/secrets/${name}/versions/latest`,
   });
