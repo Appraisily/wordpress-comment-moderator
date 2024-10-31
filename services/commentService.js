@@ -46,7 +46,7 @@ Clasificación:`;
 
   try {
     const completion = await openai.createChatCompletion({
-      model: 'gpt-3.5-turbo',
+      model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0,
       max_tokens: 6, // Aumentado para evitar truncamiento
@@ -73,7 +73,36 @@ async function generateResponse(commentText) {
   });
   const openai = new OpenAIApi(configuration);
 
-  const prompt = `El cliente ha comentado: "${commentText}". Genera una respuesta amable que lo incentive a realizar una compra en nuestra web. La respuesta debe ser en español y tener un tono amigable.`;
+const prompt = `The customer has commented: "${commentText}". Generate a friendly response that encourages them to make a purchase on our website. The response should be in Spanish, with a warm and engaging tone. 
+
+Use the following information as a basis for the response:
+
+- Highlight our expertise in art and antique appraisal, including the use of specialized knowledge and modern technology for accurate, precise appraisals.
+- Mention our track record of serving over 10,000 clients with professionalism and reliability.
+- Emphasize that our reports adhere to USPAP standards, ensuring high quality and fair valuation.
+- Encourage the customer to try our services, for example, by visiting (https://landing.appraisily.com/) or (https://services.appraisily.com/) to begin their appraisal service. Alternatively, invite them to test the "Free Instant Art Screening" through (https://screener.appraisily.com/).
+- Use key selling points of our services, such as insurance and tax deduction appraisals, fast 24-48 hour turnaround, and transparent pricing starting from just $59.
+
+Be sure to incorporate points into a warm, engaging, and friendly suggestion that directly addresses the customer's potential needs.
+
+# Output Format
+The output should be a brief yet friendly paragraph in Spanish where:
+- The customer comment is acknowledged.
+- The value of the services is highlighted.
+- The customer is encouraged to either initiate an appraisal, explore tailored services, or try our free analysis.
+
+# Example
+Input: 
+The customer has commented: "I am considering getting an appraisal for some artwork, but I'm not sure yet."
+
+Response:
+"That's exciting to hear that you have artwork that could benefit from a professional appraisal! At Appraisily, we understand the unique value of each piece and offer a quick and precise process that will provide you with a detailed report, adhering to USPAP standards. You can start the appraisal process on our website here: (https://landing.appraisily.com/), or if you prefer, you can try our Free Instant Art Screening first by visiting (https://screener.appraisily.com/). We're here to help you discover the true value of your treasures quickly, safely, and professionally."
+
+# Notes
+- Remember to keep the tone positive and welcoming.
+- Highlight different options available to the customer so they feel in control of their journey.
+- Adapt the response to the specific customer comment to maximize relevance and engagement.
+`;
 
   try {
     const completion = await openai.createChatCompletion({
