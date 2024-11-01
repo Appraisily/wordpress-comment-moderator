@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { Configuration, OpenAIApi } = require('openai');
+const openai = require('openai');
 const { config } = require('../shared/config');
 const crypto = require('crypto');
 
@@ -33,10 +33,10 @@ async function handleNewComment(commentData) {
 
 // Clasificar el comentario usando OpenAI
 async function classifyComment(commentText) {
-  const configuration = new Configuration({
+  const configuration = new openai.Configuration({
     apiKey: config.OPENAI_API_KEY,
   });
-  const openai = new OpenAIApi(configuration);
+  const openaiApi = new openai.OpenAIApi(configuration);
 
   const prompt = `Clasifica el siguiente comentario como "Correcto" o "Spam". Solo responde con una de esas dos opciones y nada más.
 
@@ -45,8 +45,8 @@ Comentario: "${commentText}"
 Clasificación:`;
 
   try {
-    const completion = await openai.createChatCompletion({
-      model: 'gpt-4o-mini',
+    const completion = await openaiApi.createChatCompletion({
+      model: 'gpt-3.5-turbo', // Cambia a 'gpt-4' si tienes acceso
       messages: [{ role: 'user', content: prompt }],
       temperature: 0,
       max_tokens: 6, // Aumentado para evitar truncamiento
@@ -61,19 +61,19 @@ Clasificación:`;
       return 'Spam'; // Por defecto, marcar como Spam si la respuesta es inesperada
     }
   } catch (error) {
-    console.error('Error al clasificar el comentario:', error);
+    console.error('Error al clasificar el comentario:', error.response ? error.response.data : error.message);
     return 'Spam'; // Marcar como Spam en caso de error
   }
 }
 
 // Generar una respuesta para el comentario usando OpenAI
 async function generateResponse(commentText) {
-  const configuration = new Configuration({
+  const configuration = new openai.Configuration({
     apiKey: config.OPENAI_API_KEY,
   });
-  const openai = new OpenAIApi(configuration);
+  const openaiApi = new openai.OpenAIApi(configuration);
 
-const prompt = `The customer has commented: "${commentText}". Generate a friendly response that encourages them to make a purchase on our website. The response should be in Spanish, with a warm and engaging tone. 
+  const prompt = `The customer has commented: "${commentText}". Generate a friendly response that encourages them to make a purchase on our website. The response should be in Spanish, with a warm and engaging tone.
 
 Use the following information as a basis for the response:
 
@@ -92,11 +92,11 @@ The output should be a brief yet friendly paragraph in Spanish where:
 - The customer is encouraged to either initiate an appraisal, explore tailored services, or try our free analysis.
 
 # Example
-Input: 
+Input:
 The customer has commented: "I am considering getting an appraisal for some artwork, but I'm not sure yet."
 
 Response:
-"That's exciting to hear that you have artwork that could benefit from a professional appraisal! At Appraisily, we understand the unique value of each piece and offer a quick and precise process that will provide you with a detailed report, adhering to USPAP standards. You can start the appraisal process on our website here: (https://landing.appraisily.com/), or if you prefer, you can try our Free Instant Art Screening first by visiting (https://screener.appraisily.com/). We're here to help you discover the true value of your treasures quickly, safely, and professionally."
+"¡Es emocionante saber que estás considerando tasar tus obras de arte! En Appraisily, contamos con más de 10,000 clientes satisfechos gracias a nuestra experiencia y tecnología avanzada para brindar tasaciones precisas y confiables siguiendo los estándares USPAP. Te invitamos a iniciar tu servicio de tasación visitando (https://landing.appraisily.com/) o (https://services.appraisily.com/). Si lo prefieres, puedes probar nuestro "Análisis Instantáneo de Arte Gratuito" en (https://screener.appraisily.com/). ¡Estamos aquí para ayudarte a descubrir el verdadero valor de tus tesoros!"
 
 # Notes
 - Remember to keep the tone positive and welcoming.
@@ -105,8 +105,8 @@ Response:
 `;
 
   try {
-    const completion = await openai.createChatCompletion({
-      model: 'gpt-4',
+    const completion = await openaiApi.createChatCompletion({
+      model: 'gpt-3.5-turbo', // Cambia a 'gpt-4' si tienes acceso
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
       max_tokens: 150,
@@ -115,7 +115,7 @@ Response:
     const response = completion.data.choices[0].message.content.trim();
     return response;
   } catch (error) {
-    console.error('Error al generar la respuesta:', error);
+    console.error('Error al generar la respuesta:', error.response ? error.response.data : error.message);
     return '';
   }
 }
@@ -164,7 +164,7 @@ async function markCommentAsSpam(commentId) {
   };
 
   try {
-    const response = await axios.put(apiUrl, data, { // Usar PUT es más claro para actualizaciones
+    const response = await axios.put(apiUrl, data, {
       headers: {
         'Authorization': `Basic ${auth}`,
         'Content-Type': 'application/json',
@@ -185,7 +185,7 @@ async function markCommentAsSpam(commentId) {
 async function getUnprocessedComments(batchSize) {
   try {
     const baseUrl = config.WORDPRESS_API_URL.replace(/\/$/, '');
-const apiUrl = `${config.WORDPRESS_API_URL}/comments`;
+    const apiUrl = `${baseUrl}/wp-json/wp/v2/comments`;
 
     console.log('Solicitando comentarios desde URL:', apiUrl);
 
@@ -202,7 +202,6 @@ const apiUrl = `${config.WORDPRESS_API_URL}/comments`;
     });
 
     console.log('Código de estado HTTP:', response.status);
-    console.log('Datos de respuesta:', response.data);
 
     if (Array.isArray(response.data)) {
       return response.data;
@@ -221,11 +220,10 @@ const apiUrl = `${config.WORDPRESS_API_URL}/comments`;
   }
 }
 
-
 // Marcar un comentario como procesado en WordPress
 async function markCommentAsProcessed(commentId) {
   const auth = Buffer.from(`${config.WORDPRESS_USERNAME}:${config.WORDPRESS_APP_PASSWORD}`).toString('base64');
-  const apiUrl = `${config.WORDPRESS_API_URL}/${commentId}`;
+  const apiUrl = `${config.WORDPRESS_API_URL}/wp-json/wp/v2/comments/${commentId}`;
 
   const data = {
     meta: {
@@ -234,7 +232,7 @@ async function markCommentAsProcessed(commentId) {
   };
 
   try {
-    const response = await axios.post(apiUrl, data, {
+    const response = await axios.put(apiUrl, data, {
       headers: {
         'Authorization': `Basic ${auth}`,
         'Content-Type': 'application/json',
