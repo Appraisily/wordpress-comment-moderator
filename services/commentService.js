@@ -157,7 +157,11 @@ async function postResponse(responseText, postId, parentId) {
 // Marcar el comentario como spam en WordPress
 async function markCommentAsSpam(commentId) {
   const auth = Buffer.from(`${config.WORDPRESS_USERNAME}:${config.WORDPRESS_APP_PASSWORD}`).toString('base64');
-  const apiUrl = `${config.WORDPRESS_API_URL}/wp-json/wp/v2/comments/${commentId}`;
+
+  // Asegúrate de que la URL está construida correctamente
+  const apiUrl = `${config.WORDPRESS_API_URL}/comments/${commentId}`;
+
+  console.log(`URL para marcar comentario como spam: ${apiUrl}`);
 
   const data = {
     status: 'spam',
@@ -180,6 +184,7 @@ async function markCommentAsSpam(commentId) {
     }
   }
 }
+
 
 
 // Obtener comentarios no procesados para procesamiento por lotes
@@ -224,7 +229,11 @@ async function getUnprocessedComments(batchSize) {
 // Marcar un comentario como procesado en WordPress
 async function markCommentAsProcessed(commentId) {
   const auth = Buffer.from(`${config.WORDPRESS_USERNAME}:${config.WORDPRESS_APP_PASSWORD}`).toString('base64');
-  const apiUrl = `${config.WORDPRESS_API_URL}/wp-json/wp/v2/comments/${commentId}`;
+
+  // Asegúrate de que la URL está construida correctamente
+  const apiUrl = `${config.WORDPRESS_API_URL}/comments/${commentId}`;
+
+  console.log(`URL para marcar comentario como procesado: ${apiUrl}`);
 
   const data = {
     meta: {
@@ -238,7 +247,6 @@ async function markCommentAsProcessed(commentId) {
         'Authorization': `Basic ${auth}`,
         'Content-Type': 'application/json',
       },
-      timeout: 5000,
     });
 
     console.log(`Comentario ID ${commentId} marcado como procesado exitosamente. Código de estado: ${response.status}`);
@@ -250,6 +258,7 @@ async function markCommentAsProcessed(commentId) {
     }
   }
 }
+
 
 
 module.exports = {
