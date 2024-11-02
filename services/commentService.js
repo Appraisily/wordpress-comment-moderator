@@ -164,7 +164,7 @@ async function markCommentAsSpam(commentId) {
   };
 
   try {
-    const response = await axios.put(apiUrl, data, {
+    const response = await axios.post(apiUrl, data, {
       headers: {
         'Authorization': `Basic ${auth}`,
         'Content-Type': 'application/json',
@@ -180,6 +180,7 @@ async function markCommentAsSpam(commentId) {
     }
   }
 }
+
 
 // Obtener comentarios no procesados para procesamiento por lotes
 async function getUnprocessedComments(batchSize) {
@@ -232,7 +233,7 @@ async function markCommentAsProcessed(commentId) {
   };
 
   try {
-    const response = await axios.put(apiUrl, data, {
+    const response = await axios.post(apiUrl, data, {
       headers: {
         'Authorization': `Basic ${auth}`,
         'Content-Type': 'application/json',
@@ -249,6 +250,7 @@ async function markCommentAsProcessed(commentId) {
     }
   }
 }
+
 
 module.exports = {
   handleNewComment,
