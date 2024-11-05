@@ -98,10 +98,47 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Añadir después de la definición de las rutas pero antes de initializeConfig
+const DAILY_INTERVAL = 24 * 60 * 60 * 1000; // 24 horas en milisegundos
+
+async function processPendingComments() {
+  try {
+    console.log('Iniciando procesamiento automático de comentarios...');
+    const BATCH_SIZE = config.BATCH_SIZE;
+    const DELAY_BETWEEN_COMMENTS = config.DELAY_BETWEEN_COMMENTS;
+    
+    const comments = await commentService.getUnprocessedComments(BATCH_SIZE);
+    
+    if (comments.length === 0) {
+      console.log('No hay comentarios pendientes de procesar.');
+      return;
+    }
+
+    console.log(`Procesando ${comments.length} comentarios pendientes.`);
+    
+    for (const comment of comments) {
+      await commentService.handleNewComment(comment);
+      await commentService.markCommentAsProcessed(comment.id);
+      await delay(DELAY_BETWEEN_COMMENTS);
+    }
+    
+    console.log('Procesamiento automático completado.');
+  } catch (error) {
+    console.error('Error en el procesamiento automático:', error);
+  }
+}
+
 initializeConfig().then(() => {
   const PORT = process.env.PORT || 8080;
   app.listen(PORT, () => {
     console.log(`Servidor escuchando en el puerto ${PORT}`);
+    
+    // Iniciar el primer procesamiento después de 1 minuto
+    setTimeout(() => {
+      processPendingComments();
+      // Configurar el intervalo diario
+      setInterval(processPendingComments, DAILY_INTERVAL);
+    }, 60000);
   });
 }).catch(error => {
   console.error('Error al inicializar la configuración:', error);
