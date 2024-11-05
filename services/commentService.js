@@ -131,30 +131,36 @@ async function postResponse(responseText, postId, parentId) {
     return;
   }
 
-  const auth = Buffer.from(`${config.WORDPRESS_USERNAME}:${config.WORDPRESS_APP_PASSWORD}`).toString('base64');
-  const apiUrl = `${config.WORDPRESS_API_URL}/wp-json/wp/v2/comments`;
+  // La URL base ya incluye /wp-json/wp/v2, así que solo necesitamos /comments
+  const apiUrl = `${config.WORDPRESS_API_URL}/comments`;
 
   const data = {
     content: responseText,
     post: postId,
     parent: parentId,
+    status: 'approve'
   };
 
   try {
+    console.log(`Intentando publicar respuesta en: ${apiUrl}`);
+    console.log('Datos de la respuesta:', {
+      postId,
+      parentId,
+      contentLength: responseText.length
+    });
+
     const response = await axios.post(apiUrl, data, {
       headers: {
-        'Authorization': `Basic ${auth}`,
-        'Content-Type': 'application/json',
-      },
+        'Authorization': `Basic ${Buffer.from(`${config.WORDPRESS_USERNAME}:${config.WORDPRESS_APP_PASSWORD}`).toString('base64')}`,
+        'Content-Type': 'application/json'
+      }
     });
 
     console.log(`Respuesta publicada exitosamente en el comentario ID ${parentId}. Código de estado: ${response.status}`);
+    return response.data;
   } catch (error) {
-    if (error.response) {
-      console.error(`Error al publicar la respuesta en WordPress. Código de estado: ${error.response.status}. Mensaje: ${JSON.stringify(error.response.data)}`);
-    } else {
-      console.error('Error al publicar la respuesta en WordPress:', error.message);
-    }
+    console.error('Error al publicar la respuesta:', error.response?.data || error.message);
+    throw error;
   }
 }
 
