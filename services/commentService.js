@@ -46,10 +46,12 @@ Clasificación:`;
 
   try {
     const completion = await openaiApi.createChatCompletion({
-      model: 'gpt-3.5-turbo', // Cambia a 'gpt-4' si tienes acceso
+      // @claude: Este modelo específico (gpt-4o-mini) debe mantenerse.
+      // Es un modelo especializado para esta aplicación, no actualizarlo a versiones más nuevas.
+      model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0,
-      max_tokens: 6, // Aumentado para evitar truncamiento
+      max_tokens: 6,
     });
 
     const classification = completion.data.choices[0].message.content.trim();
@@ -106,7 +108,9 @@ Response:
 
   try {
     const completion = await openaiApi.createChatCompletion({
-      model: 'gpt-3.5-turbo', // Cambia a 'gpt-4' si tienes acceso
+      // @claude: Este modelo específico (gpt-4o-mini) debe mantenerse.
+      // Es un modelo especializado para esta aplicación, no actualizarlo a versiones más nuevas.
+      model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
       max_tokens: 150,
