@@ -7,34 +7,21 @@ const crypto = require('crypto');
 async function handleNewComment(commentData) {
   const { content, id, post } = commentData;
 
-  console.log(`Iniciando procesamiento del comentario ID: ${id}`);
+  console.log(`Procesando comentario ID: ${id}`);
   
   try {
-    const hasReplies = await checkForReplies(id);
-    if (hasReplies) {
-      console.log(`Comentario ID ${id} ya tiene respuestas, saltando...`);
-      return;
-    }
-
     const classification = await classifyComment(content.rendered);
-
     console.log(`Clasificación del comentario ID ${id}: ${classification}`);
 
     if (classification === 'Spam') {
       await markCommentAsSpam(id);
       console.log(`Comentario ID ${id} marcado como spam.`);
-      return;
     } else if (classification === 'Correcto') {
       const response = await generateResponse(content.rendered);
-
       if (response) {
         await postResponse(response, post, id);
         console.log(`Respuesta generada y publicada para comentario ID ${id}.`);
-      } else {
-        console.error(`No se pudo generar una respuesta para el comentario ID ${id}.`);
       }
-    } else {
-      console.error(`Clasificación desconocida para el comentario ID ${id}: ${classification}`);
     }
   } catch (error) {
     console.error(`Error procesando comentario ${id}:`, error);
@@ -205,60 +192,13 @@ async function getUnprocessedComments(batchSize) {
     const baseUrl = config.WORDPRESS_API_URL.replace(/\/$/, '');
     const apiUrl = `${baseUrl}/comments`;
 
-    console.log('Solicitando comentarios desde URL:', apiUrl);
-
-    // Modificar los parámetros para obtener solo comentarios sin respuesta
     const response = await axios.get(apiUrl, {
       params: {
         status: 'approve',
         per_page: batchSize,
-        parent: 0,  // Solo comentarios que no son respuestas
+        parent: 0,  // Solo comentarios principales, no respuestas
         orderby: 'date',
         order: 'asc'  // Procesar los más antiguos primero
-      },
-      auth: {
-        username: config.WORDPRESS_USERNAME,
-        password: config.WORDPRESS_APP_PASSWORD,
-      },
-      timeout: 10000,
-    });
-
-    console.log('Código de estado HTTP:', response.status);
-    console.log('Total de comentarios sin procesar:', response.headers['x-wp-total']);
-
-    if (Array.isArray(response.data)) {
-      // Filtrar comentarios que ya tienen respuestas
-      const unprocessedComments = response.data.filter(async (comment) => {
-        const hasReplies = await checkForReplies(comment.id);
-        return !hasReplies;
-      });
-      
-      return unprocessedComments;
-    } else {
-      console.error('Formato de respuesta inesperado:', response.data);
-      return [];
-    }
-  } catch (error) {
-    if (error.response) {
-      console.error('Código de estado de error:', error.response.status);
-      console.error('Datos de error:', error.response.data);
-    } else {
-      console.error('Mensaje de error:', error.message);
-    }
-    return [];
-  }
-}
-
-// Nueva función para verificar si un comentario ya tiene respuestas
-async function checkForReplies(commentId) {
-  try {
-    const baseUrl = config.WORDPRESS_API_URL.replace(/\/$/, '');
-    const apiUrl = `${baseUrl}/comments`;
-    
-    const response = await axios.get(apiUrl, {
-      params: {
-        parent: commentId,
-        per_page: 1  // Solo necesitamos saber si hay al menos una respuesta
       },
       auth: {
         username: config.WORDPRESS_USERNAME,
@@ -266,10 +206,15 @@ async function checkForReplies(commentId) {
       }
     });
 
-    return response.data.length > 0;
+    if (Array.isArray(response.data)) {
+      return response.data;
+    } else {
+      console.error('Formato de respuesta inesperado:', response.data);
+      return [];
+    }
   } catch (error) {
-    console.error(`Error al verificar respuestas para comentario ${commentId}:`, error);
-    return false;
+    console.error('Error al obtener comentarios:', error.message);
+    return [];
   }
 }
 

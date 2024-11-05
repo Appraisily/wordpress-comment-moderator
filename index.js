@@ -46,64 +46,72 @@ app.post('/webhook', async (req, res) => {
 app.post('/process-batch', async (req, res) => {
   try {
     // Aumentar el tamaño del batch y reducir delays
-    const BATCH_SIZE = 50; // Aumentado de 10 a 50
-    const DELAY_BETWEEN_COMMENTS = 1000; // Reducido a 1 segundo
-    const DELAY_BETWEEN_BATCHES = 5000; // Reducido a 5 segundos
+    const BATCH_SIZE = 50;
+    const DELAY_BETWEEN_COMMENTS = 1000;
+    const DELAY_BETWEEN_BATCHES = 5000;
 
     // Obtener Comentarios No Procesados
     const comments = await commentService.getUnprocessedComments(BATCH_SIZE);
 
     if (!Array.isArray(comments)) {
       console.error('La variable comments no es un arreglo:', comments);
-      return res.status(500).send('Error interno del servidor.');
+      return res.status(500).json({ error: 'Error interno del servidor' });
     }
 
     // Responder inmediatamente al cliente
-    res.status(200).send(`Procesando lote de ${comments.length} comentarios.`);
+    res.status(200).json({ 
+      message: `Procesando lote de ${comments.length} comentarios.`,
+      count: comments.length 
+    });
 
     if (comments.length === 0) {
       console.log('No hay comentarios pendientes de procesar.');
       return;
     }
 
-    console.log(`Procesando un lote de ${comments.length} comentarios.`);
-
-    // Procesar Cada Comentario
+    // Procesar comentarios después de enviar la respuesta
     for (const comment of comments) {
       try {
         await commentService.handleNewComment(comment);
         await commentService.markCommentAsProcessed(comment.id);
         await delay(DELAY_BETWEEN_COMMENTS);
+        console.log(`Comentario ${comment.id} procesado correctamente`);
       } catch (error) {
         console.error(`Error procesando comentario ${comment.id}:`, error);
-        // Continuar con el siguiente comentario en caso de error
         continue;
       }
     }
 
-    console.log(`Lote de ${comments.length} comentarios procesados correctamente.`);
-
-    // Invocar el siguiente lote inmediatamente si hay más comentarios
+    // Si hay más comentarios, programar el siguiente lote
     if (comments.length === BATCH_SIZE) {
-      try {
-        await delay(DELAY_BETWEEN_BATCHES);
-        await axios.post(`${req.protocol}://${req.get('host')}/process-batch`);
-        console.log('Invocada la siguiente ronda de procesamiento por lotes.');
-      } catch (error) {
-        console.error('Error al invocar el siguiente lote:', error.message);
-        // Reintentar después de un delay más largo
-        setTimeout(async () => {
-          try {
-            await axios.post(`${req.protocol}://${req.get('host')}/process-batch`);
-          } catch (retryError) {
-            console.error('Error en reintento:', retryError.message);
-          }
-        }, 30000); // Reintento después de 30 segundos
-      }
+      setTimeout(async () => {
+        try {
+          const nextBatchResponse = await axios.post(
+            `${req.protocol}://${req.get('host')}/process-batch`,
+            {},
+            { timeout: 30000 }
+          );
+          console.log('Siguiente lote iniciado:', nextBatchResponse.status);
+        } catch (error) {
+          console.error('Error al iniciar siguiente lote:', error.message);
+          // Programar reintento
+          setTimeout(async () => {
+            try {
+              await axios.post(`${req.protocol}://${req.get('host')}/process-batch`);
+            } catch (retryError) {
+              console.error('Error en reintento:', retryError.message);
+            }
+          }, 30000);
+        }
+      }, DELAY_BETWEEN_BATCHES);
     }
 
   } catch (error) {
-    console.error('Error al procesar el lote de comentarios:', error);
+    console.error('Error en process-batch:', error);
+    // Si la respuesta no se ha enviado aún, enviar error
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Error al procesar el lote de comentarios' });
+    }
   }
 });
 
