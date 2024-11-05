@@ -142,6 +142,33 @@ async function processPendingComments() {
   }
 }
 
+// Endpoint para ver estadísticas
+app.get('/stats', async (req, res) => {
+  try {
+    const baseUrl = config.WORDPRESS_API_URL.replace(/\/$/, '');
+    const response = await axios.get(`${baseUrl}/comments`, {
+      params: {
+        status: 'approve',
+        parent: 0
+      },
+      auth: {
+        username: config.WORDPRESS_USERNAME,
+        password: config.WORDPRESS_APP_PASSWORD,
+      }
+    });
+
+    const stats = {
+      total: response.headers['x-wp-total'],
+      totalPages: response.headers['x-wp-totalpages'],
+      currentBatch: response.data.length
+    };
+
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 initializeConfig().then(() => {
   const PORT = process.env.PORT || 8080;
   app.listen(PORT, () => {

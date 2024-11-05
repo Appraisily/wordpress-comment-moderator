@@ -7,27 +7,38 @@ const crypto = require('crypto');
 async function handleNewComment(commentData) {
   const { content, id, post } = commentData;
 
-  console.log(`Procesando comentario ID: ${id} en el post ID: ${post}`);
-
-  const classification = await classifyComment(content.rendered);
-
-  console.log(`Clasificación del comentario ID ${id}: ${classification}`);
-
-  if (classification === 'Spam') {
-    await markCommentAsSpam(id);
-    console.log(`Comentario ID ${id} marcado como spam.`);
-    return;
-  } else if (classification === 'Correcto') {
-    const response = await generateResponse(content.rendered);
-
-    if (response) {
-      await postResponse(response, post, id);
-      console.log(`Respuesta generada y publicada para comentario ID ${id}.`);
-    } else {
-      console.error(`No se pudo generar una respuesta para el comentario ID ${id}.`);
+  console.log(`Iniciando procesamiento del comentario ID: ${id}`);
+  
+  try {
+    const hasReplies = await checkForReplies(id);
+    if (hasReplies) {
+      console.log(`Comentario ID ${id} ya tiene respuestas, saltando...`);
+      return;
     }
-  } else {
-    console.error(`Clasificación desconocida para el comentario ID ${id}: ${classification}`);
+
+    const classification = await classifyComment(content.rendered);
+
+    console.log(`Clasificación del comentario ID ${id}: ${classification}`);
+
+    if (classification === 'Spam') {
+      await markCommentAsSpam(id);
+      console.log(`Comentario ID ${id} marcado como spam.`);
+      return;
+    } else if (classification === 'Correcto') {
+      const response = await generateResponse(content.rendered);
+
+      if (response) {
+        await postResponse(response, post, id);
+        console.log(`Respuesta generada y publicada para comentario ID ${id}.`);
+      } else {
+        console.error(`No se pudo generar una respuesta para el comentario ID ${id}.`);
+      }
+    } else {
+      console.error(`Clasificación desconocida para el comentario ID ${id}: ${classification}`);
+    }
+  } catch (error) {
+    console.error(`Error procesando comentario ${id}:`, error);
+    throw error;
   }
 }
 
@@ -166,36 +177,27 @@ async function postResponse(responseText, postId, parentId) {
 
 // Marcar el comentario como spam en WordPress
 async function markCommentAsSpam(commentId) {
-  const auth = Buffer.from(`${config.WORDPRESS_USERNAME}:${config.WORDPRESS_APP_PASSWORD}`).toString('base64');
-
-  // Asegúrate de que la URL está construida correctamente
-  const apiUrl = `${config.WORDPRESS_API_URL}/comments/${commentId}`;
-
-  console.log(`URL para marcar comentario como spam: ${apiUrl}`);
-
-  const data = {
-    status: 'spam',
-  };
+  const baseUrl = config.WORDPRESS_API_URL.replace(/\/$/, '');
+  const apiUrl = `${baseUrl}/comments/${commentId}`;
 
   try {
-    const response = await axios.post(apiUrl, data, {
-      headers: {
-        'Authorization': `Basic ${auth}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    const response = await axios.post(apiUrl, 
+      { status: 'spam' },
+      {
+        headers: {
+          'Authorization': `Basic ${Buffer.from(`${config.WORDPRESS_USERNAME}:${config.WORDPRESS_APP_PASSWORD}`).toString('base64')}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
 
-    console.log(`Comentario ID ${commentId} marcado como spam exitosamente. Código de estado: ${response.status}`);
+    console.log(`Comentario ${commentId} marcado como spam. Estado: ${response.status}`);
+    return response.data;
   } catch (error) {
-    if (error.response) {
-      console.error(`Error al marcar el comentario como spam. Código de estado: ${error.response.status}. Mensaje: ${JSON.stringify(error.response.data)}`);
-    } else {
-      console.error('Error al marcar el comentario como spam:', error.message);
-    }
+    console.error(`Error al marcar comentario ${commentId} como spam:`, error.response?.data || error.message);
+    throw error;
   }
 }
-
-
 
 // Obtener comentarios no procesados para procesamiento por lotes
 async function getUnprocessedComments(batchSize) {
@@ -205,10 +207,14 @@ async function getUnprocessedComments(batchSize) {
 
     console.log('Solicitando comentarios desde URL:', apiUrl);
 
+    // Modificar los parámetros para obtener solo comentarios sin respuesta
     const response = await axios.get(apiUrl, {
       params: {
         status: 'approve',
         per_page: batchSize,
+        parent: 0,  // Solo comentarios que no son respuestas
+        orderby: 'date',
+        order: 'asc'  // Procesar los más antiguos primero
       },
       auth: {
         username: config.WORDPRESS_USERNAME,
@@ -218,9 +224,16 @@ async function getUnprocessedComments(batchSize) {
     });
 
     console.log('Código de estado HTTP:', response.status);
+    console.log('Total de comentarios sin procesar:', response.headers['x-wp-total']);
 
     if (Array.isArray(response.data)) {
-      return response.data;
+      // Filtrar comentarios que ya tienen respuestas
+      const unprocessedComments = response.data.filter(async (comment) => {
+        const hasReplies = await checkForReplies(comment.id);
+        return !hasReplies;
+      });
+      
+      return unprocessedComments;
     } else {
       console.error('Formato de respuesta inesperado:', response.data);
       return [];
@@ -233,6 +246,30 @@ async function getUnprocessedComments(batchSize) {
       console.error('Mensaje de error:', error.message);
     }
     return [];
+  }
+}
+
+// Nueva función para verificar si un comentario ya tiene respuestas
+async function checkForReplies(commentId) {
+  try {
+    const baseUrl = config.WORDPRESS_API_URL.replace(/\/$/, '');
+    const apiUrl = `${baseUrl}/comments`;
+    
+    const response = await axios.get(apiUrl, {
+      params: {
+        parent: commentId,
+        per_page: 1  // Solo necesitamos saber si hay al menos una respuesta
+      },
+      auth: {
+        username: config.WORDPRESS_USERNAME,
+        password: config.WORDPRESS_APP_PASSWORD,
+      }
+    });
+
+    return response.data.length > 0;
+  } catch (error) {
+    console.error(`Error al verificar respuestas para comentario ${commentId}:`, error);
+    return false;
   }
 }
 
