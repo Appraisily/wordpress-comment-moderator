@@ -129,23 +129,30 @@ async function postResponse(responseText, postId, parentId) {
     return;
   }
 
-  // La URL base ya incluye /wp-json/wp/v2, así que solo necesitamos /comments
-  const apiUrl = `${config.WORDPRESS_API_URL}/comments`;
-
-  const data = {
-    content: responseText,
-    post: postId,
-    parent: parentId,
-    status: 'approve'
-  };
-
+  const baseUrl = config.WORDPRESS_API_URL.replace(/\/$/, '');
+  
   try {
-    console.log(`Intentando publicar respuesta en: ${apiUrl}`);
-    console.log('Datos de la respuesta:', {
-      postId,
-      parentId,
-      contentLength: responseText.length
-    });
+    // Primero, aprobar el comentario original
+    await axios.post(`${baseUrl}/comments/${parentId}`, 
+      { status: 'approve' },
+      {
+        headers: {
+          'Authorization': `Basic ${Buffer.from(`${config.WORDPRESS_USERNAME}:${config.WORDPRESS_APP_PASSWORD}`).toString('base64')}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    console.log(`Comentario original ${parentId} aprobado`);
+
+    // Luego, publicar la respuesta
+    const apiUrl = `${baseUrl}/comments`;
+    const data = {
+      content: responseText,
+      post: postId,
+      parent: parentId,
+      status: 'approve'
+    };
 
     const response = await axios.post(apiUrl, data, {
       headers: {
@@ -154,7 +161,7 @@ async function postResponse(responseText, postId, parentId) {
       }
     });
 
-    console.log(`Respuesta publicada exitosamente en el comentario ID ${parentId}. Código de estado: ${response.status}`);
+    console.log(`Respuesta publicada exitosamente en el comentario ID ${parentId}`);
     return response.data;
   } catch (error) {
     console.error('Error al publicar la respuesta:', error.response?.data || error.message);
@@ -194,9 +201,8 @@ async function getUnprocessedComments(batchSize) {
 
     const response = await axios.get(apiUrl, {
       params: {
-        status: 'approve',
+        status: 'hold',  // Cambiar a 'hold' para obtener comentarios pendientes
         per_page: batchSize,
-        parent: 0,  // Solo comentarios principales, no respuestas
         orderby: 'date',
         order: 'asc'  // Procesar los más antiguos primero
       },
@@ -207,6 +213,7 @@ async function getUnprocessedComments(batchSize) {
     });
 
     if (Array.isArray(response.data)) {
+      console.log(`Obtenidos ${response.data.length} comentarios pendientes de moderación`);
       return response.data;
     } else {
       console.error('Formato de respuesta inesperado:', response.data);
