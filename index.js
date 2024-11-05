@@ -121,7 +121,7 @@ function delay(ms) {
 }
 
 // Añadir después de la definición de las rutas pero antes de initializeConfig
-const DAILY_INTERVAL = 24 * 60 * 60 * 1000; // 24 horas en milisegundos
+const HOURLY_INTERVAL = 60 * 60 * 1000; // 1 hora en milisegundos (60 min * 60 seg * 1000 ms)
 
 async function processPendingComments() {
   try {
@@ -185,8 +185,8 @@ initializeConfig().then(() => {
     // Iniciar el primer procesamiento después de 1 minuto
     setTimeout(() => {
       processPendingComments();
-      // Configurar el intervalo diario
-      setInterval(processPendingComments, DAILY_INTERVAL);
+      // Configurar el intervalo horario en lugar de diario
+      setInterval(processPendingComments, HOURLY_INTERVAL);
     }, 60000);
   });
 }).catch(error => {
