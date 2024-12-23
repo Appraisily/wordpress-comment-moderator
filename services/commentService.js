@@ -1,186 +1,81 @@
-const express = require('express');
-const bodyParser = require('body-parser');
-const { initializeConfig, config } = require('./shared/config');
-const commentService = require('./services/commentService');
-const crypto = require('crypto');
-const axios = require('axios'); // Asegúrate de tener axios instalado
-
-const app = express();
-app.use(bodyParser.json());
+const axios = require('axios');
+const openai = require('openai');
+const { config } = require('../shared/config');
+const { generateMichelleResponse } = require('./michelleService');
 
 // Set para trackear comentarios en proceso
 const processingComments = new Set();
 
-// Endpoint existente para el webhook
-app.post('/webhook', async (req, res) => {
-  try {
-    const incomingSecret = req.headers['x-shared-secret'];
+// Manejar un nuevo comentario
+async function handleNewComment(commentData) {
+  const { content, id, post, author_name } = commentData;
 
-    if (!incomingSecret || !config.SHARED_SECRET) {
-      console.warn('No se proporcionó el Shared Secret.');
-      return res.status(403).send('No autorizado');
-    }
-
-    const incomingSecretBuffer = Buffer.from(incomingSecret);
-    const storedSecretBuffer = Buffer.from(config.SHARED_SECRET);
-
-    if (incomingSecretBuffer.length !== storedSecretBuffer.length) {
-      console.warn('Longitud del Shared Secret no coincide.');
-      return res.status(403).send('No autorizado');
-    }
-
-    if (!crypto.timingSafeEqual(incomingSecretBuffer, storedSecretBuffer)) {
-      console.warn('Shared Secret inválido.');
-      return res.status(403).send('No autorizado');
-    }
-
-    console.log('Shared Secret verificado correctamente.');
-
-    const commentData = req.body;
-    await commentService.handleNewComment(commentData);
-    res.status(200).send('Comentario procesado.');
-  } catch (error) {
-    console.error('Error al procesar el comentario:', error);
-    res.status(500).send('Error interno del servidor.');
+  if (processingComments.has(id)) {
+    console.log(`Comentario ${id} ya está siendo procesado.`);
+    return;
   }
-});
 
-// Nuevo Endpoint para Procesamiento por Lotes
-app.post('/process-batch', async (req, res) => {
+  processingComments.add(id);
+  console.log(`Procesando comentario ID: ${id}`);
+  
   try {
-    // Obtener el tamaño del lote desde el body o usar el valor por defecto
-    const BATCH_SIZE = req.body.batchSize || config.BATCH_SIZE;
-    const DELAY_BETWEEN_COMMENTS = 1000;
-    const DELAY_BETWEEN_BATCHES = 5000;
+    const classification = await classifyComment(content.rendered);
+    console.log(`Clasificación del comentario ID ${id}: ${classification}`);
 
-    // Obtener Comentarios No Procesados
-    const comments = await commentService.getUnprocessedComments(BATCH_SIZE);
-
-    if (!Array.isArray(comments)) {
-      console.error('La variable comments no es un arreglo:', comments);
-      return res.status(500).json({ error: 'Error interno del servidor' });
-    }
-
-    // Responder inmediatamente al cliente
-    res.status(200).json({ 
-      message: `Procesando lote de ${comments.length} comentarios.`,
-      count: comments.length,
-      batchSize: BATCH_SIZE
-    });
-
-    if (comments.length === 0) {
-      console.log('No hay comentarios pendientes de procesar.');
-      return;
-    }
-
-    // Procesar comentarios después de enviar la respuesta
-    for (const comment of comments) {
-      try {
-        await commentService.handleNewComment(comment);
-        await commentService.markCommentAsProcessed(comment.id);
-        await delay(DELAY_BETWEEN_COMMENTS);
-        console.log(`Comentario ${comment.id} procesado correctamente`);
-      } catch (error) {
-        console.error(`Error procesando comentario ${comment.id}:`, error);
-        continue;
+    if (classification === 'Spam') {
+      await markCommentAsSpam(id);
+      console.log(`Comentario ID ${id} marcado como spam.`);
+    } else if (classification === 'Correcto') {
+      const response = await generateMichelleResponse(content.rendered, author_name);
+      if (response) {
+        await postResponse(response, post, id);
+        console.log(`Respuesta generada y publicada para comentario ID ${id}.`);
       }
     }
-
-    // Si hay más comentarios, programar el siguiente lote
-    if (comments.length === BATCH_SIZE) {
-      setTimeout(async () => {
-        try {
-          const nextBatchResponse = await axios.post(
-            `${req.protocol}://${req.get('host')}/process-batch`,
-            { batchSize: BATCH_SIZE },
-            { timeout: 30000 }
-          );
-          console.log('Siguiente lote iniciado:', nextBatchResponse.status);
-        } catch (error) {
-          console.error('Error al iniciar siguiente lote:', error.message);
-          // Programar reintento
-          setTimeout(async () => {
-            try {
-              await axios.post(`${req.protocol}://${req.get('host')}/process-batch`);
-            } catch (retryError) {
-              console.error('Error en reintento:', retryError.message);
-            }
-          }, 30000);
-        }
-      }, DELAY_BETWEEN_BATCHES);
-    }
-
   } catch (error) {
-    console.error('Error en process-batch:', error);
-    // Si la respuesta no se ha enviado aún, enviar error
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Error al procesar el lote de comentarios' });
-    }
-  }
-});
-
-// Función de Utilidad para Pausas
-function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-// Añadir después de la definición de las rutas pero antes de initializeConfig
-const HOURLY_INTERVAL = 60 * 60 * 1000; // 1 hora en milisegundos (60 min * 60 seg * 1000 ms)
-
-async function processPendingComments() {
-  try {
-    console.log('Iniciando procesamiento automático de comentarios...');
-    const BATCH_SIZE = config.BATCH_SIZE;
-    const DELAY_BETWEEN_COMMENTS = config.DELAY_BETWEEN_COMMENTS;
-    
-    const comments = await commentService.getUnprocessedComments(BATCH_SIZE);
-    
-    if (comments.length === 0) {
-      console.log('No hay comentarios pendientes de procesar.');
-      return;
-    }
-
-    console.log(`Procesando ${comments.length} comentarios pendientes.`);
-    
-    for (const comment of comments) {
-      await commentService.handleNewComment(comment);
-      await commentService.markCommentAsProcessed(comment.id);
-      await delay(DELAY_BETWEEN_COMMENTS);
-    }
-    
-    console.log('Procesamiento automático completado.');
-  } catch (error) {
-    console.error('Error en el procesamiento automático:', error);
+    console.error(`Error procesando comentario ${id}:`, error);
+    throw error;
+  } finally {
+    processingComments.delete(id);
   }
 }
 
-// Endpoint para ver estadísticas
-app.get('/stats', async (req, res) => {
+// Clasificar el comentario usando OpenAI
+async function classifyComment(commentText) {
+  const configuration = new openai.Configuration({
+    apiKey: config.OPENAI_API_KEY,
+  });
+  const openaiApi = new openai.OpenAIApi(configuration);
+
+  const prompt = `Clasifica el siguiente comentario como "Correcto" o "Spam". Solo responde con una de esas dos opciones y nada más.
+
+Comentario: "${commentText}"
+
+Clasificación:`;
+
   try {
-    const baseUrl = config.WORDPRESS_API_URL.replace(/\/$/, '');
-    const response = await axios.get(`${baseUrl}/comments`, {
-      params: {
-        status: 'approve',
-        parent: 0
-      },
-      auth: {
-        username: config.WORDPRESS_USERNAME,
-        password: config.WORDPRESS_APP_PASSWORD,
-      }
+    const completion = await openaiApi.createChatCompletion({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0,
+      max_tokens: 6,
     });
 
-    const stats = {
-      total: response.headers['x-wp-total'],
-      totalPages: response.headers['x-wp-totalpages'],
-      currentBatch: response.data.length
-    };
+    const classification = completion.data.choices[0].message.content.trim();
 
-    res.json(stats);
+    if (classification === 'Correcto' || classification === 'Spam') {
+      return classification;
+    } else {
+      console.error(`Respuesta inesperada de clasificación: "${classification}"`);
+      return 'Spam';
+    }
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error al clasificar el comentario:', error.response ? error.response.data : error.message);
+    return 'Spam';
   }
-});
+}
 
+// Publicar la respuesta en WordPress
 async function postResponse(responseText, postId, parentId) {
   if (!responseText) {
     console.error('No se pudo generar una respuesta.');
@@ -202,14 +97,17 @@ async function postResponse(responseText, postId, parentId) {
       }
     );
 
+    console.log(`Comentario original ${parentId} aprobado`);
+
+    // Luego, publicar la respuesta
+    const apiUrl = `${baseUrl}/comments`;
     const data = {
+      content: responseText,
       post: postId,
       parent: parentId,
-      content: responseText,
       status: 'approve'
     };
 
-    const apiUrl = `${baseUrl}/comments`;
     const response = await axios.post(apiUrl, data, {
       headers: {
         'Authorization': `Basic ${auth}`,
@@ -217,25 +115,105 @@ async function postResponse(responseText, postId, parentId) {
       }
     });
 
+    console.log(`Respuesta publicada exitosamente en el comentario ID ${parentId}`);
     return response.data;
   } catch (error) {
-    console.error('Error al publicar respuesta:', error);
+    console.error('Error al publicar la respuesta:', error.response?.data || error.message);
     throw error;
   }
 }
 
-initializeConfig().then(() => {
-  const PORT = process.env.PORT || 8080;
-  app.listen(PORT, () => {
-    console.log(`Servidor escuchando en el puerto ${PORT}`);
-    
-    // Iniciar el primer procesamiento después de 1 minuto
-    setTimeout(() => {
-      processPendingComments();
-      // Configurar el intervalo horario en lugar de diario
-      setInterval(processPendingComments, HOURLY_INTERVAL);
-    }, 60000);
-  });
-}).catch(error => {
-  console.error('Error al inicializar la configuración:', error);
-});
+// Marcar el comentario como spam en WordPress
+async function markCommentAsSpam(commentId) {
+  const baseUrl = config.WORDPRESS_API_URL.replace(/\/$/, '');
+  const apiUrl = `${baseUrl}/comments/${commentId}`;
+  const auth = Buffer.from(`${config.MICHELLE_USERNAME}:${config.MICHELLE_APP_PASSWORD}`).toString('base64');
+
+  try {
+    const response = await axios.post(apiUrl, 
+      { status: 'spam' },
+      {
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    console.log(`Comentario ${commentId} marcado como spam. Estado: ${response.status}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error al marcar comentario ${commentId} como spam:`, error.response?.data || error.message);
+    throw error;
+  }
+}
+
+// Obtener comentarios no procesados para procesamiento por lotes
+async function getUnprocessedComments(batchSize) {
+  try {
+    const baseUrl = config.WORDPRESS_API_URL.replace(/\/$/, '');
+    const apiUrl = `${baseUrl}/comments`;
+    const auth = Buffer.from(`${config.MICHELLE_USERNAME}:${config.MICHELLE_APP_PASSWORD}`).toString('base64');
+
+    const response = await axios.get(apiUrl, {
+      params: {
+        status: 'hold',
+        per_page: batchSize,
+        orderby: 'date',
+        order: 'asc'
+      },
+      headers: {
+        'Authorization': `Basic ${auth}`
+      }
+    });
+
+    if (Array.isArray(response.data)) {
+      console.log(`Obtenidos ${response.data.length} comentarios pendientes de moderación`);
+      return response.data;
+    } else {
+      console.error('Formato de respuesta inesperado:', response.data);
+      return [];
+    }
+  } catch (error) {
+    console.error('Error al obtener comentarios:', error.message);
+    return [];
+  }
+}
+
+// Marcar un comentario como procesado en WordPress
+async function markCommentAsProcessed(commentId) {
+  const baseUrl = config.WORDPRESS_API_URL.replace(/\/$/, '');
+  const apiUrl = `${baseUrl}/comments/${commentId}`;
+  const auth = Buffer.from(`${config.MICHELLE_USERNAME}:${config.MICHELLE_APP_PASSWORD}`).toString('base64');
+
+  console.log(`URL para marcar comentario como procesado: ${apiUrl}`);
+
+  const data = {
+    meta: {
+      processed: true,
+    },
+  };
+
+  try {
+    const response = await axios.post(apiUrl, data, {
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    console.log(`Comentario ID ${commentId} marcado como procesado exitosamente. Código de estado: ${response.status}`);
+  } catch (error) {
+    if (error.response) {
+      console.error(`Error al marcar el comentario ${commentId} como procesado. Código de estado: ${error.response.status}. Mensaje: ${JSON.stringify(error.response.data)}`);
+    } else {
+      console.error(`Error al marcar el comentario ${commentId} como procesado:`, error.message);
+    }
+  }
+}
+
+module.exports = {
+  handleNewComment,
+  getUnprocessedComments,
+  markCommentAsProcessed,
+};
