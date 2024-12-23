@@ -26,6 +26,11 @@ console.log('GOOGLE_CLOUD_PROJECT_ID obtenido correctamente:', projectId);
     config.SHARED_SECRET = (await getSecret(projectId, 'SHARED_SECRET')).trim();
     console.log('SHARED_SECRET obtenido exitosamente.');
 
+    // Obtener credenciales de Michelle
+    config.MICHELLE_USERNAME = (await getSecret(projectId, 'MICHELLE_USERNAME')).trim();
+    config.MICHELLE_APP_PASSWORD = (await getSecret(projectId, 'MICHELLE_APP_PASSWORD')).trim();
+    console.log('Credenciales de Michelle obtenidas exitosamente.');
+
     config.MICHELLE_API_KEY = (await getSecret(projectId, 'DIRECT_API_KEY')).trim();
     console.log('MICHELLE_API_KEY obtenido exitosamente.');
 
