@@ -26,6 +26,9 @@ console.log('GOOGLE_CLOUD_PROJECT_ID obtenido correctamente:', projectId);
     config.SHARED_SECRET = (await getSecret(projectId, 'SHARED_SECRET')).trim();
     console.log('SHARED_SECRET obtenido exitosamente.');
 
+    config.MICHELLE_API_KEY = (await getSecret(projectId, 'DIRECT_API_KEY')).trim();
+    console.log('MICHELLE_API_KEY obtenido exitosamente.');
+
     // Definir CLOUD_RUN_WEBHOOK_URL directamente en el código
     config.CLOUD_RUN_WEBHOOK_URL = 'https://tu-cloud-run-service-url/webhook'; // Reemplaza con tu URL real
     console.log('CLOUD_RUN_WEBHOOK_URL definido directamente en el código.');
