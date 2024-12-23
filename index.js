@@ -45,8 +45,8 @@ app.post('/webhook', async (req, res) => {
 // Nuevo Endpoint para Procesamiento por Lotes
 app.post('/process-batch', async (req, res) => {
   try {
-    // Aumentar el tamaño del batch y reducir delays
-    const BATCH_SIZE = 50;
+    // Obtener el tamaño del lote desde el body o usar el valor por defecto
+    const BATCH_SIZE = req.body.batchSize || config.BATCH_SIZE;
     const DELAY_BETWEEN_COMMENTS = 1000;
     const DELAY_BETWEEN_BATCHES = 5000;
 
@@ -61,7 +61,8 @@ app.post('/process-batch', async (req, res) => {
     // Responder inmediatamente al cliente
     res.status(200).json({ 
       message: `Procesando lote de ${comments.length} comentarios.`,
-      count: comments.length 
+      count: comments.length,
+      batchSize: BATCH_SIZE
     });
 
     if (comments.length === 0) {
@@ -88,7 +89,7 @@ app.post('/process-batch', async (req, res) => {
         try {
           const nextBatchResponse = await axios.post(
             `${req.protocol}://${req.get('host')}/process-batch`,
-            {},
+            { batchSize: BATCH_SIZE },
             { timeout: 30000 }
           );
           console.log('Siguiente lote iniciado:', nextBatchResponse.status);
