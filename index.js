@@ -122,22 +122,23 @@ function delay(ms) {
 }
 
 // Añadir después de la definición de las rutas pero antes de initializeConfig
-const HOURLY_INTERVAL = 60 * 60 * 1000; // 1 hora en milisegundos (60 min * 60 seg * 1000 ms)
+const HOURLY_INTERVAL = 60 * 60 * 1000; // 1 hora en milisegundos
 
 async function processPendingComments() {
   try {
-    console.log('Iniciando procesamiento automático de comentarios...');
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] 🔄 Iniciando procesamiento automático de comentarios (Cron Job Horario)`);
     const BATCH_SIZE = config.BATCH_SIZE;
     const DELAY_BETWEEN_COMMENTS = config.DELAY_BETWEEN_COMMENTS;
     
     const comments = await commentService.getUnprocessedComments(BATCH_SIZE);
     
     if (comments.length === 0) {
-      console.log('No hay comentarios pendientes de procesar.');
+      console.log(`[${timestamp}] ✅ No hay comentarios pendientes de procesar`);
       return;
     }
 
-    console.log(`Procesando ${comments.length} comentarios pendientes.`);
+    console.log(`[${timestamp}] 📝 Procesando lote de ${comments.length} comentarios pendientes`);
     
     for (const comment of comments) {
       await commentService.handleNewComment(comment);
@@ -145,9 +146,9 @@ async function processPendingComments() {
       await delay(DELAY_BETWEEN_COMMENTS);
     }
     
-    console.log('Procesamiento automático completado.');
+    console.log(`[${timestamp}] ✨ Procesamiento automático completado exitosamente`);
   } catch (error) {
-    console.error('Error en el procesamiento automático:', error);
+    console.error(`[${new Date().toISOString()}] ❌ Error en el procesamiento automático:`, error);
   }
 }
 
@@ -186,7 +187,7 @@ initializeConfig().then(() => {
     // Iniciar el primer procesamiento después de 1 minuto
     setTimeout(() => {
       processPendingComments();
-      // Configurar el intervalo horario en lugar de diario
+      // Configurar el intervalo horario
       setInterval(processPendingComments, HOURLY_INTERVAL);
     }, 60000);
   });
