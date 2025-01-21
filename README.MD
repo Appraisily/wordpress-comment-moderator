@@ -1,118 +1,225 @@
-WordPress Comment Moderator Service
-Descripción
-Servicio automatizado para la moderación y respuesta de comentarios en WordPress utilizando IA. El servicio clasifica automáticamente los comentarios como legítimos o spam, y genera respuestas personalizadas para los comentarios legítimos utilizando OpenAI GPT.
-Características Principales
-Clasificación automática de comentarios usando IA
-Generación de respuestas personalizadas
-Procesamiento por lotes de comentarios pendientes
-Manejo automático de spam
-Monitoreo y estadísticas en tiempo real
-Integración segura con WordPress y OpenAI
-Requisitos Previos
-Node.js v14 o superior
-Cuenta de WordPress con API REST habilitada
-Credenciales de aplicación WordPress
-Clave API de OpenAI
-Google Cloud Project (para Secret Manager)
-Configuración
-Variables de Entorno (Secret Manager)
-wp_username: Usuario de WordPress
-wp_app_password: Contraseña de aplicación de WordPress
-WORDPRESS_API_URL: URL base de la API de WordPress
-OPENAI_API_KEY: Clave API de OpenAI
-SHARED_SECRET: Secreto compartido para autenticación de webhooks
-Instalación
-Clonar el repositorio
-git clone [url-del-repositorio]
-Instalar dependencias
+# WordPress Comment Moderator Service
+
+An automated service that moderates WordPress comments using AI, classifies spam, and generates personalized responses using OpenAI GPT and a custom Michelle AI agent.
+
+## Features
+
+- 🤖 **AI-Powered Comment Classification**
+  - Automatic spam detection
+  - Smart content analysis
+  - Real-time processing
+
+- 💬 **Intelligent Response Generation**
+  - Personalized responses via Michelle AI
+  - Context-aware interactions
+  - Professional tone maintenance
+
+- 🔄 **Batch Processing**
+  - Efficient handling of comment queues
+  - Configurable batch sizes
+  - Automatic retry mechanisms
+
+- 📊 **Monitoring & Statistics**
+  - Real-time processing stats
+  - Comment queue monitoring
+  - Performance metrics
+
+## Prerequisites
+
+- Node.js v18 or higher
+- Google Cloud Platform account
+- WordPress site with REST API enabled
+- OpenAI API access
+- Michelle AI service access
+
+## Environment Setup
+
+The service uses Google Cloud Secret Manager for secure configuration. Required secrets:
+
+```
+wp_username           # WordPress username
+wp_app_password      # WordPress application password
+WORDPRESS_API_URL    # WordPress API base URL
+OPENAI_API_KEY       # OpenAI API key
+SHARED_SECRET        # Webhook authentication secret
+MICHELLE_USERNAME    # Michelle bot username
+MICHELLE_APP_PASSWORD # Michelle bot password
+DIRECT_API_KEY       # Michelle API access key
+```
+
+## Installation
+
+1. Clone the repository:
+```bash
+git clone [repository-url]
+cd wordpress-comment-moderator
+```
+
+2. Install dependencies:
+```bash
 npm install
-Iniciar el servicio
+```
+
+3. Start the service:
+```bash
 npm start
-Endpoints
-POST /webhook
-Endpoint para recibir notificaciones de nuevos comentarios de WordPress.
-Headers requeridos: x-shared-secret
-Body: Datos del comentario de WordPress
-Respuesta: 200 OK si el comentario fue procesado correctamente
-POST /process-batch
-Inicia el procesamiento por lotes de comentarios pendientes.
-Respuesta:
+```
+
+## API Endpoints
+
+### POST /webhook
+Receives new comment notifications from WordPress.
+
+**Headers:**
+- `x-shared-secret`: Authentication token
+
+**Response:**
+- `200 OK`: Comment processed successfully
+- `403 Forbidden`: Invalid authentication
+- `500 Error`: Processing failed
+
+### POST /process-batch
+Triggers batch processing of pending comments.
+
+**Response:**
+```json
 {
-"message": "Procesando lote de X comentarios.",
-"count": X
+  "message": "Processing batch of X comments.",
+  "count": X,
+  "batchSize": Y
 }
-GET /stats
-Obtiene estadísticas generales del sistema.
-Respuesta:
+```
+
+### GET /stats
+Retrieves system statistics.
+
+**Response:**
+```json
 {
-"total": "número total de comentarios",
-"totalPages": "número total de páginas",
-"currentBatch": "tamaño del lote actual"
+  "total": "total comments count",
+  "totalPages": "total pages count",
+  "currentBatch": "current batch size"
 }
-GET /pending
-Muestra información sobre comentarios pendientes.
-Respuesta:
-{
-"totalPending": "número total de pendientes",
-"pendingPages": "número de páginas de pendientes",
-"currentBatch": "tamaño del lote actual",
-"recentPending": [
-{
-"id": "ID del comentario",
-"date": "fecha",
-"postId": "ID del post",
-"excerpt": "extracto del comentario..."
-}
-]
-}
-Flujo de Trabajo
-Recepción de Comentarios:
-Vía webhook para comentarios nuevos
-Procesamiento por lotes para comentarios pendientes
-Clasificación:
-Análisis del comentario usando OpenAI
-Clasificación como "Correcto" o "Spam"
-Procesamiento:
-Comentarios spam: Marcados como spam en WordPress
-Comentarios correctos:
-Generación de respuesta personalizada
-Aprobación del comentario original
-Publicación de la respuesta
-Marcado como procesado
-Configuración de Procesamiento por Lotes
-config.BATCH_SIZE = 50; // Comentarios por lote
-config.DELAY_BETWEEN_COMMENTS = 1000; // 1 segundo entre comentarios
-config.DELAY_BETWEEN_BATCHES = 5000; // 5 segundos entre lotes
-Monitoreo y Logs
-El servicio proporciona logs detallados de:
-Inicialización del servicio
-Procesamiento de comentarios
-Clasificaciones de IA
-Respuestas generadas
-Errores y excepciones
-Seguridad
-Autenticación básica para API WordPress
-Verificación de secreto compartido para webhooks
-Manejo seguro de credenciales via Secret Manager
-Timeouts y reintentos configurados
-Mantenimiento
-El servicio incluye:
-Procesamiento automático diario
-Sistema de reintentos para errores
-Manejo de rate limits
-Procesamiento continuo de lotes grandes
-Solución de Problemas
-Si encuentras problemas:
-Verificar logs del servicio
-Comprobar credenciales en Secret Manager
-Verificar permisos de WordPress
-Comprobar conectividad con APIs
-Contribución
-Las contribuciones son bienvenidas. Por favor:
-Fork del repositorio
-Crear rama feature (git checkout -b feature/AmazingFeature)
-Commit cambios (git commit -m 'Add AmazingFeature')
-Push a la rama (git push origin feature/AmazingFeature)
-Abrir Pull Request
-Licencia
-[Especificar licencia]
+```
+
+## Architecture
+
+### Comment Processing Flow
+
+1. **Comment Reception**
+   - Webhook notifications for new comments
+   - Batch processing for pending comments
+
+2. **Classification**
+   - OpenAI-powered content analysis
+   - Spam detection
+   - Content legitimacy verification
+
+3. **Response Generation**
+   - Michelle AI context processing
+   - Personalized response creation
+   - WordPress API integration
+
+4. **Comment Management**
+   - Automatic approval/rejection
+   - Response posting
+   - Status tracking
+
+### Batch Processing Configuration
+
+```javascript
+BATCH_SIZE = 50                 // Comments per batch
+DELAY_BETWEEN_COMMENTS = 1000   // 1 second delay
+DELAY_BETWEEN_BATCHES = 5000    // 5 seconds between batches
+```
+
+## Security
+
+- **Authentication**
+  - WordPress API basic auth
+  - Webhook shared secret verification
+  - Michelle API key authentication
+
+- **Data Protection**
+  - Secure secret management via Google Cloud
+  - Rate limiting
+  - Request validation
+
+## Error Handling
+
+- Automatic retry mechanisms
+- Failed comment tracking
+- Error logging and monitoring
+- Rate limit management
+
+## Deployment
+
+### Google Cloud Run
+
+1. Build the Docker image:
+```bash
+docker build -t gcr.io/[PROJECT_ID]/wordpress-comment-moderator .
+```
+
+2. Deploy to Cloud Run:
+```bash
+gcloud run deploy wordpress-comment-moderator \
+  --image gcr.io/[PROJECT_ID]/wordpress-comment-moderator \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated
+```
+
+## Monitoring
+
+The service provides detailed logging for:
+- Service initialization
+- Comment processing
+- AI classifications
+- Response generation
+- Error occurrences
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Authentication Failures**
+   - Verify WordPress credentials
+   - Check secret configuration
+   - Validate webhook secret
+
+2. **Processing Delays**
+   - Monitor batch size settings
+   - Check API rate limits
+   - Verify network connectivity
+
+3. **Response Generation Issues**
+   - Validate OpenAI API access
+   - Check Michelle API connectivity
+   - Review response templates
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+For support and questions:
+- Open an issue in the repository
+- Contact the development team
+- Check the documentation
+
+## Acknowledgments
+
+- OpenAI for GPT integration
+- WordPress REST API
+- Michelle AI team
+- Google Cloud Platform
