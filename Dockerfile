@@ -1,20 +1,20 @@
-# Usa una imagen base de Node.js
+# Use a Node.js base image
 FROM node:18-alpine
 
-# Establece el directorio de trabajo en /app
+# Set working directory
 WORKDIR /app
 
-# Copia los archivos de configuración y dependencias
+# Copy package files
 COPY package*.json ./
 
-# Instala solo las dependencias de producción
+# Install production dependencies
 RUN npm install --production
 
-# Copia el resto del código de la aplicación
+# Copy the entire project directory
 COPY . .
 
-# Expone el puerto en el que escucha tu aplicación (opcional en Cloud Run)
+# Expose port 8080
 EXPOSE 8080
 
-# Comando para iniciar la aplicación
-CMD ["npm", "start"]
+# Start command pointing to the correct file
+CMD ["node", "src/server.js"]
