@@ -1,17 +1,23 @@
-// New file to handle AI-related operations
 const openai = require('openai');
 const axios = require('axios');
-const { config } = require('../config');
+const { getConfig } = require('../config');
 
 class AIService {
   constructor() {
-    this.openaiConfig = new openai.Configuration({
-      apiKey: config.OPENAI_API_KEY,
+    this.openaiApi = null;
+  }
+
+  setup() {
+    const config = getConfig();
+    const openaiConfig = new openai.Configuration({
+      apiKey: config.ai.openaiKey,
     });
-    this.openaiApi = new openai.OpenAIApi(this.openaiConfig);
+    this.openaiApi = new openai.OpenAIApi(openaiConfig);
   }
 
   async classifyComment(commentText) {
+    if (!this.openaiApi) this.setup();
+
     const prompt = `Clasifica el siguiente comentario como "Correcto" o "Spam". Solo responde con una de esas dos opciones y nada más.
 
 Comentario: "${commentText}"
@@ -20,7 +26,7 @@ Clasificación:`;
 
     try {
       const completion = await this.openaiApi.createChatCompletion({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4-mini',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0,
         max_tokens: 6,
@@ -35,6 +41,9 @@ Clasificación:`;
   }
 
   async generateMichelleResponse(commentText, senderName = '') {
+    if (!this.openaiApi) this.setup();
+    
+    const config = getConfig();
     try {
       const response = await axios.post(
         'https://michelle-gmail-856401495068.us-central1.run.app/api/process-message',
@@ -45,7 +54,7 @@ Clasificación:`;
         {
           headers: {
             'Content-Type': 'application/json',
-            'X-API-Key': config.MICHELLE_API_KEY
+            'X-API-Key': config.ai.michelleKey
           },
           timeout: 30000
         }
@@ -84,4 +93,4 @@ COMMENT:`;
   }
 }
 
-module.exports = new AIService();
+module.exports = { AIService };
