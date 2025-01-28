@@ -2,6 +2,13 @@
 
 An automated service that moderates WordPress comments using AI, classifies spam, and generates personalized responses using OpenAI GPT and a custom Michelle AI agent.
 
+## Service URL
+
+The service is deployed and accessible at:
+```
+https://wordpress-comment-moderator-856401495068.us-central1.run.app
+```
+
 ## Project Structure
 
 ```
