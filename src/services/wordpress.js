@@ -1,22 +1,37 @@
-// New file to handle WordPress-specific operations
 const axios = require('axios');
 const { config } = require('../config');
 
 class WordPressService {
   constructor() {
-    this.baseUrl = config.WORDPRESS_API_URL.replace(/\/$/, '');
-    this.auth = Buffer.from(`${config.MICHELLE_USERNAME}:${config.MICHELLE_APP_PASSWORD}`).toString('base64');
+    // Remove initialization from constructor
+    this.auth = null;
+    this.baseUrl = null;
+  }
+
+  // Initialize service with config
+  async initialize() {
+    if (!this.baseUrl || !this.auth) {
+      this.baseUrl = config.WORDPRESS_API_URL?.replace(/\/$/, '');
+      this.auth = Buffer.from(`${config.MICHELLE_USERNAME}:${config.MICHELLE_APP_PASSWORD}`).toString('base64');
+      
+      if (!this.baseUrl || !this.auth) {
+        throw new Error('WordPress service configuration is missing');
+      }
+    }
   }
 
   async approveComment(commentId) {
+    await this.initialize();
     return this.updateCommentStatus(commentId, 'approve');
   }
 
   async markAsSpam(commentId) {
+    await this.initialize();
     return this.updateCommentStatus(commentId, 'spam');
   }
 
   async updateCommentStatus(commentId, status) {
+    await this.initialize();
     try {
       const response = await axios.post(
         `${this.baseUrl}/comments/${commentId}`,
@@ -36,6 +51,7 @@ class WordPressService {
   }
 
   async postResponse(responseText, postId, parentId) {
+    await this.initialize();
     try {
       await this.approveComment(parentId);
       
@@ -62,6 +78,7 @@ class WordPressService {
   }
 
   async getUnprocessedComments(batchSize) {
+    await this.initialize();
     try {
       const response = await axios.get(`${this.baseUrl}/comments`, {
         params: {
