@@ -1,8 +1,10 @@
-// Rename from shared/config.js to src/config/index.js
-const { getSecret } = require('./secretManager');
 const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
 
-const config = {};
+const config = {
+  BATCH_SIZE: 50,
+  DELAY_BETWEEN_COMMENTS: 1000,
+  DELAY_BETWEEN_BATCHES: 5000
+};
 
 async function initializeConfig() {
   try {
@@ -22,14 +24,22 @@ async function initializeConfig() {
     config.MICHELLE_USERNAME = (await getSecret(projectId, 'MICHELLE_USERNAME')).trim();
     config.MICHELLE_APP_PASSWORD = (await getSecret(projectId, 'MICHELLE_APP_PASSWORD')).trim();
 
-    // Processing configuration
-    config.BATCH_SIZE = 50;
-    config.DELAY_BETWEEN_COMMENTS = 1000;
-    config.DELAY_BETWEEN_BATCHES = 5000;
-
     console.log('Configuration initialized successfully');
   } catch (error) {
     console.error('Configuration initialization failed:', error);
+    throw error;
+  }
+}
+
+async function getSecret(projectId, secretName) {
+  const client = new SecretManagerServiceClient();
+  try {
+    const [version] = await client.accessSecretVersion({
+      name: `projects/${projectId}/secrets/${secretName}/versions/latest`,
+    });
+    return version.payload.data.toString('utf8');
+  } catch (error) {
+    console.error(`Failed to retrieve secret ${secretName}:`, error.message);
     throw error;
   }
 }

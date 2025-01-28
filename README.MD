@@ -2,6 +2,30 @@
 
 An automated service that moderates WordPress comments using AI, classifies spam, and generates personalized responses using OpenAI GPT and a custom Michelle AI agent.
 
+## Project Structure
+
+```
+/home/project/
+├── src/
+│   ├── app.js           # Express app setup
+│   ├── index.js         # Application entry point
+│   ├── config/
+│   │   └── index.js     # Configuration management
+│   ├── middleware/
+│   │   └── auth.js      # Authentication middleware
+│   ├── routes/
+│   │   ├── index.js     # Route definitions
+│   │   └── handlers.js  # Route handlers
+│   └── services/
+│       ├── ai.js        # AI service integration
+│       ├── moderator.js # Comment moderation logic
+│       ├── scheduler.js # Periodic processing
+│       └── wordpress.js # WordPress API integration
+├── Dockerfile
+├── package.json
+└── README.md
+```
+
 ## Features
 
 - 🤖 **AI-Powered Comment Classification**
@@ -84,7 +108,7 @@ Triggers batch processing of pending comments.
 **Response:**
 ```json
 {
-  "message": "Processing batch of X comments.",
+  "message": "Processing batch of X comments",
   "count": X,
   "batchSize": Y
 }
@@ -125,7 +149,7 @@ Retrieves system statistics.
    - Response posting
    - Status tracking
 
-### Batch Processing Configuration
+### Configuration
 
 ```javascript
 BATCH_SIZE = 50                 // Comments per batch
