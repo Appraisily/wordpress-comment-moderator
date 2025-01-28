@@ -5,17 +5,19 @@ class WordPressService {
   constructor() {
     this.baseUrl = null;
     this.auth = null;
+    this.initialized = false;
   }
 
   initialize() {
-    if (!this.baseUrl || !this.auth) {
-      if (!config.WORDPRESS_API_URL || !config.MICHELLE_USERNAME || !config.MICHELLE_APP_PASSWORD) {
-        throw new Error('WordPress service configuration is missing');
-      }
-      
-      this.baseUrl = config.WORDPRESS_API_URL.replace(/\/$/, '');
-      this.auth = Buffer.from(`${config.MICHELLE_USERNAME}:${config.MICHELLE_APP_PASSWORD}`).toString('base64');
+    if (this.initialized) return;
+
+    if (!config.WORDPRESS_API_URL || !config.MICHELLE_USERNAME || !config.MICHELLE_APP_PASSWORD) {
+      throw new Error('WordPress service configuration is missing');
     }
+    
+    this.baseUrl = config.WORDPRESS_API_URL.replace(/\/$/, '');
+    this.auth = Buffer.from(`${config.MICHELLE_USERNAME}:${config.MICHELLE_APP_PASSWORD}`).toString('base64');
+    this.initialized = true;
   }
 
   async approveComment(commentId) {
@@ -102,5 +104,4 @@ class WordPressService {
   }
 }
 
-// Export a new instance of the class
 module.exports = new WordPressService();

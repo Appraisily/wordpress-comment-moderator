@@ -1,6 +1,6 @@
 const wordpress = require('./wordpress');
 const ai = require('./ai');
-const axios = require('axios');
+const { config } = require('../config');
 
 const processingComments = new Set();
 
@@ -38,14 +38,16 @@ async function handleNewComment(commentData) {
 }
 
 async function processBatch(comments, protocol, host) {
-  const DELAY_BETWEEN_COMMENTS = 1000;
-  const DELAY_BETWEEN_BATCHES = 5000;
+  if (!comments || comments.length === 0) {
+    console.log('No comments to process');
+    return;
+  }
 
   for (const comment of comments) {
     try {
       await handleNewComment(comment);
       await wordpress.markCommentAsProcessed(comment.id);
-      await delay(DELAY_BETWEEN_COMMENTS);
+      await delay(config.DELAY_BETWEEN_COMMENTS);
       console.log(`Comment ${comment.id} processed successfully`);
     } catch (error) {
       console.error(`Error processing comment ${comment.id}:`, error);
@@ -54,11 +56,11 @@ async function processBatch(comments, protocol, host) {
   }
 
   if (comments.length === config.BATCH_SIZE && protocol && host) {
-    await scheduleNextBatch(protocol, host, DELAY_BETWEEN_BATCHES);
+    await scheduleNextBatch(protocol, host);
   }
 }
 
-async function scheduleNextBatch(protocol, host, delay) {
+async function scheduleNextBatch(protocol, host) {
   return new Promise((resolve) => {
     setTimeout(async () => {
       try {
@@ -82,7 +84,7 @@ async function scheduleNextBatch(protocol, host, delay) {
           }
         }, 30000);
       }
-    }, delay);
+    }, config.DELAY_BETWEEN_BATCHES);
   });
 }
 
@@ -92,6 +94,6 @@ function delay(ms) {
 
 module.exports = {
   handleNewComment,
-  getUnprocessedComments: wordpress.getUnprocessedComments,
-  processBatch
+  processBatch,
+  getUnprocessedComments: wordpress.getUnprocessedComments
 };
