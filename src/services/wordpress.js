@@ -95,6 +95,12 @@ class WordPressService {
       return [];
     }
   }
+
+  async markCommentAsProcessed(commentId) {
+    this.initialize();
+    return this.updateCommentStatus(commentId, 'processed');
+  }
 }
 
+// Export a new instance of the class
 module.exports = new WordPressService();
