@@ -3,33 +3,30 @@ const { config } = require('../config');
 
 class WordPressService {
   constructor() {
-    this.auth = null;
+    // Initialize these in the constructor
     this.baseUrl = null;
+    this.auth = null;
+    this.setup();
   }
 
-  initialize() {
-    if (!this.baseUrl || !this.auth) {
-      if (!config.WORDPRESS_API_URL || !config.MICHELLE_USERNAME || !config.MICHELLE_APP_PASSWORD) {
-        throw new Error('WordPress service configuration is missing');
-      }
-
-      this.baseUrl = config.WORDPRESS_API_URL.replace(/\/$/, '');
-      this.auth = Buffer.from(`${config.MICHELLE_USERNAME}:${config.MICHELLE_APP_PASSWORD}`).toString('base64');
+  setup() {
+    if (!config.WORDPRESS_API_URL || !config.MICHELLE_USERNAME || !config.MICHELLE_APP_PASSWORD) {
+      throw new Error('WordPress service configuration is missing');
     }
+    
+    this.baseUrl = config.WORDPRESS_API_URL.replace(/\/$/, '');
+    this.auth = Buffer.from(`${config.MICHELLE_USERNAME}:${config.MICHELLE_APP_PASSWORD}`).toString('base64');
   }
 
   async approveComment(commentId) {
-    this.initialize();
     return this.updateCommentStatus(commentId, 'approve');
   }
 
   async markAsSpam(commentId) {
-    this.initialize();
     return this.updateCommentStatus(commentId, 'spam');
   }
 
   async updateCommentStatus(commentId, status) {
-    this.initialize();
     try {
       const response = await axios.post(
         `${this.baseUrl}/comments/${commentId}`,
@@ -49,7 +46,6 @@ class WordPressService {
   }
 
   async postResponse(responseText, postId, parentId) {
-    this.initialize();
     try {
       await this.approveComment(parentId);
       
@@ -76,7 +72,6 @@ class WordPressService {
   }
 
   async getUnprocessedComments(batchSize) {
-    this.initialize();
     try {
       const response = await axios.get(`${this.baseUrl}/comments`, {
         params: {
@@ -97,11 +92,10 @@ class WordPressService {
   }
 
   async markCommentAsProcessed(commentId) {
-    this.initialize();
     return this.updateCommentStatus(commentId, 'processed');
   }
 }
 
-// Create a single instance and export it
+// Create and export a single instance
 const wordpressService = new WordPressService();
 module.exports = wordpressService;
