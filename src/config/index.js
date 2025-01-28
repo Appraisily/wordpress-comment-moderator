@@ -1,32 +1,41 @@
 const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
 
-const config = {
-  BATCH_SIZE: 50,
-  DELAY_BETWEEN_COMMENTS: 1000,
-  DELAY_BETWEEN_BATCHES: 5000
-};
+let config = null;
 
-async function initializeConfig() {
+async function setupConfig() {
+  if (config) return config;
+
+  const client = new SecretManagerServiceClient();
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT;
+
   try {
-    const client = new SecretManagerServiceClient();
-    const projectId = process.env.GOOGLE_CLOUD_PROJECT;
-    config.GOOGLE_CLOUD_PROJECT_ID = projectId;
+    config = {
+      projectId,
+      wordpress: {
+        username: await getSecret(projectId, 'wp_username'),
+        password: await getSecret(projectId, 'wp_app_password'),
+        apiUrl: await getSecret(projectId, 'WORDPRESS_API_URL'),
+      },
+      ai: {
+        openaiKey: await getSecret(projectId, 'OPENAI_API_KEY'),
+        michelleKey: await getSecret(projectId, 'DIRECT_API_KEY'),
+        michelleUsername: await getSecret(projectId, 'MICHELLE_USERNAME'),
+        michellePassword: await getSecret(projectId, 'MICHELLE_APP_PASSWORD'),
+      },
+      security: {
+        sharedSecret: await getSecret(projectId, 'SHARED_SECRET'),
+      },
+      settings: {
+        batchSize: 50,
+        delayBetweenComments: 1000,
+        delayBetweenBatches: 5000,
+      }
+    };
 
-    // Core configuration
-    config.WORDPRESS_USERNAME = (await getSecret(projectId, 'wp_username')).trim();
-    config.WORDPRESS_APP_PASSWORD = (await getSecret(projectId, 'wp_app_password')).trim();
-    config.WORDPRESS_API_URL = (await getSecret(projectId, 'WORDPRESS_API_URL')).trim();
-    config.SHARED_SECRET = (await getSecret(projectId, 'SHARED_SECRET')).trim();
-
-    // AI Services configuration
-    config.OPENAI_API_KEY = (await getSecret(projectId, 'OPENAI_API_KEY')).trim();
-    config.MICHELLE_API_KEY = (await getSecret(projectId, 'DIRECT_API_KEY')).trim();
-    config.MICHELLE_USERNAME = (await getSecret(projectId, 'MICHELLE_USERNAME')).trim();
-    config.MICHELLE_APP_PASSWORD = (await getSecret(projectId, 'MICHELLE_APP_PASSWORD')).trim();
-
-    console.log('Configuration initialized successfully');
+    console.log('Configuration loaded successfully');
+    return config;
   } catch (error) {
-    console.error('Configuration initialization failed:', error);
+    console.error('Failed to load configuration:', error);
     throw error;
   }
 }
@@ -37,11 +46,18 @@ async function getSecret(projectId, secretName) {
     const [version] = await client.accessSecretVersion({
       name: `projects/${projectId}/secrets/${secretName}/versions/latest`,
     });
-    return version.payload.data.toString('utf8');
+    return version.payload.data.toString('utf8').trim();
   } catch (error) {
-    console.error(`Failed to retrieve secret ${secretName}:`, error.message);
+    console.error(`Failed to retrieve secret ${secretName}:`, error);
     throw error;
   }
 }
 
-module.exports = { config, initializeConfig };
+function getConfig() {
+  if (!config) {
+    throw new Error('Configuration not initialized');
+  }
+  return config;
+}
+
+module.exports = { setupConfig, getConfig };

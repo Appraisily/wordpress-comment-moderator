@@ -1,101 +1,73 @@
 const axios = require('axios');
-const { config } = require('../config');
+const { getConfig } = require('../config');
 
 class WordPressService {
   constructor() {
-    // Initialize these in the constructor
-    this.baseUrl = null;
-    this.auth = null;
-    this.setup();
+    this.client = null;
   }
 
   setup() {
-    if (!config.WORDPRESS_API_URL || !config.MICHELLE_USERNAME || !config.MICHELLE_APP_PASSWORD) {
-      throw new Error('WordPress service configuration is missing');
-    }
-    
-    this.baseUrl = config.WORDPRESS_API_URL.replace(/\/$/, '');
-    this.auth = Buffer.from(`${config.MICHELLE_USERNAME}:${config.MICHELLE_APP_PASSWORD}`).toString('base64');
-  }
+    const config = getConfig();
+    const { username, password, apiUrl } = config.wordpress;
 
-  async approveComment(commentId) {
-    return this.updateCommentStatus(commentId, 'approve');
-  }
-
-  async markAsSpam(commentId) {
-    return this.updateCommentStatus(commentId, 'spam');
-  }
-
-  async updateCommentStatus(commentId, status) {
-    try {
-      const response = await axios.post(
-        `${this.baseUrl}/comments/${commentId}`,
-        { status },
-        {
-          headers: {
-            'Authorization': `Basic ${this.auth}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      return response.data;
-    } catch (error) {
-      console.error(`Failed to update comment ${commentId} status to ${status}:`, error.message);
-      throw error;
-    }
-  }
-
-  async postResponse(responseText, postId, parentId) {
-    try {
-      await this.approveComment(parentId);
-      
-      const response = await axios.post(
-        `${this.baseUrl}/comments`,
-        {
-          content: responseText,
-          post: postId,
-          parent: parentId,
-          status: 'approve'
-        },
-        {
-          headers: {
-            'Authorization': `Basic ${this.auth}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      return response.data;
-    } catch (error) {
-      console.error('Failed to post response:', error.message);
-      throw error;
-    }
+    this.client = axios.create({
+      baseURL: apiUrl.replace(/\/$/, ''),
+      headers: {
+        'Authorization': `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`,
+        'Content-Type': 'application/json'
+      }
+    });
   }
 
   async getUnprocessedComments(batchSize) {
+    if (!this.client) this.setup();
+
     try {
-      const response = await axios.get(`${this.baseUrl}/comments`, {
+      const { data } = await this.client.get('/comments', {
         params: {
           status: 'hold',
           per_page: batchSize,
           orderby: 'date',
           order: 'asc'
-        },
-        headers: {
-          'Authorization': `Basic ${this.auth}`
         }
       });
-      return Array.isArray(response.data) ? response.data : [];
+      return Array.isArray(data) ? data : [];
     } catch (error) {
-      console.error('Failed to fetch unprocessed comments:', error.message);
+      console.error('Failed to fetch comments:', error.message);
       return [];
     }
   }
 
-  async markCommentAsProcessed(commentId) {
-    return this.updateCommentStatus(commentId, 'processed');
+  async updateCommentStatus(commentId, status) {
+    if (!this.client) this.setup();
+
+    try {
+      const { data } = await this.client.post(`/comments/${commentId}`, { status });
+      return data;
+    } catch (error) {
+      console.error(`Failed to update comment ${commentId}:`, error.message);
+      throw error;
+    }
+  }
+
+  async postResponse(content, postId, parentId) {
+    if (!this.client) this.setup();
+
+    try {
+      await this.updateCommentStatus(parentId, 'approve');
+      
+      const { data } = await this.client.post('/comments', {
+        content,
+        post: postId,
+        parent: parentId,
+        status: 'approve'
+      });
+      return data;
+    } catch (error) {
+      console.error('Failed to post response:', error.message);
+      throw error;
+    }
   }
 }
 
-// Create and export a single instance
-const wordpressService = new WordPressService();
-module.exports = wordpressService;
+module.exports = { WordPressService };

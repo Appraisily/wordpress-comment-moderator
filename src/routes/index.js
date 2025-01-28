@@ -1,15 +1,16 @@
-const express = require('express');
-const router = express.Router();
-const { webhookHandler, batchProcessingHandler, statsHandler } = require('./handlers');
+const { Router } = require('express');
 const { authenticateWebhook } = require('../middleware/auth');
+const { createHandlers } = require('./handlers');
 
-// Webhook endpoint with authentication
-router.post('/webhook', authenticateWebhook, webhookHandler);
+function setupRoutes(app) {
+  const router = Router();
+  const handlers = createHandlers();
 
-// Batch processing endpoint
-router.post('/process-batch', batchProcessingHandler);
+  router.post('/webhook', authenticateWebhook, handlers.webhook);
+  router.post('/process-batch', handlers.processBatch);
+  router.get('/stats', handlers.stats);
 
-// Stats endpoint
-router.get('/stats', statsHandler);
+  app.use('/', router);
+}
 
-module.exports = router;
+module.exports = { setupRoutes };
