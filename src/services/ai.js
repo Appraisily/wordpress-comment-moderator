@@ -79,7 +79,19 @@ Clasificación:`;
       );
 
       console.log('Michelle response generated successfully');
-      return response.data?.success ? response.data.response?.text : null;
+      
+      if (response.data?.success && response.data.response?.text) {
+        try {
+          // Parse the nested JSON string to get the actual content
+          const parsedResponse = JSON.parse(response.data.response.text);
+          // Return only the content part (HTML content)
+          return parsedResponse.content;
+        } catch (parseError) {
+          console.error('Failed to parse Michelle response:', parseError);
+          return null;
+        }
+      }
+      return null;
     } catch (error) {
       console.error('Michelle response generation failed. Details:', {
         error: error.message,
