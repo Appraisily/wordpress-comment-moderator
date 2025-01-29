@@ -27,10 +27,10 @@ Clasificación:`;
 
     try {
       console.log('Attempting to classify comment with OpenAI');
-      console.log('Using model: gpt-4-mini');
+      console.log('Using model: gpt-4o-mini');
       
       const completion = await this.openaiApi.createChatCompletion({
-        model: 'gpt-4-mini',
+        model: 'gpt-4-0-mini',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0,
         max_tokens: 6,
