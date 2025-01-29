@@ -11,11 +11,7 @@ class WordPressService {
     const { username, password, apiUrl } = config.wordpress;
 
     this.client = axios.create({
-<<<<<<< Updated upstream
-      baseURL: apiUrl.replace(/\/$/, ''),
-=======
       baseURL: apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl,
->>>>>>> Stashed changes
       headers: {
         'Authorization': `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`,
         'Content-Type': 'application/json'
