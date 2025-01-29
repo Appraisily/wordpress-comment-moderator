@@ -36,6 +36,52 @@ function createHandlers() {
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
+    },
+
+    async debugMichelle(req, res) {
+      try {
+        const { wordpress, ai } = getServices();
+        const commentId = req.params.commentId;
+        
+        // Get the comment from WordPress
+        const comment = await wordpress.getComment(commentId);
+        if (!comment) {
+          return res.status(404).json({ error: 'Comment not found' });
+        }
+
+        // Debug info about the comment
+        console.log('Debug - Comment data:', {
+          id: comment.id,
+          content: comment.content.rendered,
+          author: comment.author_name
+        });
+
+        // Try to generate Michelle's response
+        const response = await ai.generateMichelleResponse(
+          comment.content.rendered,
+          comment.author_name
+        );
+
+        // Return full debug information
+        res.json({
+          comment: {
+            id: comment.id,
+            content: comment.content.rendered,
+            author: comment.author_name
+          },
+          michelleResponse: {
+            raw: response,
+            parsed: response ? JSON.parse(response) : null
+          }
+        });
+      } catch (error) {
+        console.error('Debug endpoint error:', error);
+        res.status(500).json({
+          error: error.message,
+          stack: error.stack,
+          name: error.name
+        });
+      }
     }
   };
 }

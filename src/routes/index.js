@@ -9,6 +9,7 @@ function setupRoutes(app) {
   router.post('/webhook', authenticateWebhook, handlers.webhook);
   router.post('/process-batch', handlers.processBatch);
   router.get('/stats', handlers.stats);
+  router.get('/debug/michelle/:commentId', handlers.debugMichelle);
 
   app.use('/', router);
 }

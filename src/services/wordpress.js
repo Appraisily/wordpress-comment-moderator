@@ -19,6 +19,18 @@ class WordPressService {
     });
   }
 
+  async getComment(commentId) {
+    if (!this.client) this.setup();
+
+    try {
+      const { data } = await this.client.get(`/comments/${commentId}`);
+      return data;
+    } catch (error) {
+      console.error(`Failed to fetch comment ${commentId}:`, error.message);
+      throw error;
+    }
+  }
+
   async getUnprocessedComments(batchSize) {
     if (!this.client) this.setup();
 
