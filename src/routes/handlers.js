@@ -39,43 +39,64 @@ function createHandlers() {
     },
 
     async debugMichelle(req, res) {
+      console.log('🔍 Debug endpoint called for comment:', req.params.commentId);
       try {
         const { wordpress, ai } = getServices();
         const commentId = req.params.commentId;
         
-        // Get the comment from WordPress
+        console.log('📥 Fetching comment from WordPress...');
         const comment = await wordpress.getComment(commentId);
         if (!comment) {
+          console.log('❌ Comment not found:', commentId);
           return res.status(404).json({ error: 'Comment not found' });
         }
 
-        // Debug info about the comment
-        console.log('Debug - Comment data:', {
+        console.log('✅ Comment fetched successfully:', {
           id: comment.id,
           content: comment.content.rendered,
-          author: comment.author_name
+          author: comment.author_name,
+          status: comment.status
         });
 
-        // Try to generate Michelle's response
+        console.log('🤖 Generating Michelle response...');
         const response = await ai.generateMichelleResponse(
           comment.content.rendered,
           comment.author_name
         );
+        console.log('📤 Raw Michelle response:', response);
 
-        // Return full debug information
-        res.json({
+        let parsedResponse = null;
+        try {
+          if (response) {
+            console.log('🔄 Attempting to parse response...');
+            parsedResponse = JSON.parse(response);
+            console.log('✅ Response parsed successfully');
+          }
+        } catch (parseError) {
+          console.error('❌ Failed to parse response:', parseError);
+        }
+
+        const debugInfo = {
           comment: {
             id: comment.id,
             content: comment.content.rendered,
-            author: comment.author_name
+            author: comment.author_name,
+            status: comment.status
           },
           michelleResponse: {
             raw: response,
-            parsed: response ? JSON.parse(response) : null
+            parsed: parsedResponse
           }
-        });
+        };
+
+        console.log('📊 Returning debug info:', JSON.stringify(debugInfo, null, 2));
+        res.json(debugInfo);
       } catch (error) {
-        console.error('Debug endpoint error:', error);
+        console.error('❌ Debug endpoint error:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        });
         res.status(500).json({
           error: error.message,
           stack: error.stack,
