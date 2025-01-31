@@ -13,6 +13,7 @@ class AIService {
       apiKey: config.ai.openaiKey,
     });
     this.openaiApi = new openai.OpenAIApi(openaiConfig);
+    console.log('OpenAI API initialized');
   }
 
   async classifyComment(commentText) {
@@ -25,17 +26,33 @@ Comentario: "${commentText}"
 Clasificación:`;
 
     try {
+      console.log('Attempting to classify comment with OpenAI');
+      console.log('Using model: gpt-4o-mini');
+      
       const completion = await this.openaiApi.createChatCompletion({
-        model: 'gpt-4-mini',
+        model: 'gpt-4o-mini',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0,
         max_tokens: 6,
       });
 
       const classification = completion.data.choices[0].message.content.trim();
+      console.log('Received classification:', classification);
       return classification === 'Correcto' || classification === 'Spam' ? classification : 'Spam';
     } catch (error) {
-      console.error('Comment classification failed:', error.message);
+      console.error('Comment classification failed. Details:', {
+        error: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        headers: error.response?.headers,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          baseURL: error.config?.baseURL,
+          headers: error.config?.headers
+        }
+      });
       return 'Spam';
     }
   }
@@ -45,11 +62,18 @@ Clasificación:`;
     
     const config = getConfig();
     try {
+      console.log('Attempting to generate Michelle response');
+      console.log('Request payload:', {
+        text: commentText,
+        senderName,
+      });
+
       const response = await axios.post(
         'https://michelle-gmail-856401495068.us-central1.run.app/api/process-message',
         {
-          text: `${this.getMichellePrompt()}\n\n${commentText}`,
+          text: commentText,
           senderName,
+          senderEmail: `${senderName.replace(/\s+/g, '.')}@comment.local`
         },
         {
           headers: {
@@ -60,9 +84,22 @@ Clasificación:`;
         }
       );
 
-      return response.data?.success ? response.data.response?.text : null;
+      console.log('Michelle API raw response:', response.data);
+      
+      if (response.data?.success && response.data.response?.text) {
+        // The response is already the text we need, no need to parse it
+        return response.data.response.text;
+      }
+      
+      console.log('No valid response content found');
+      return null;
     } catch (error) {
-      console.error('Michelle response generation failed:', error.message);
+      console.error('Michelle response generation failed. Details:', {
+        error: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data
+      });
       return null;
     }
   }

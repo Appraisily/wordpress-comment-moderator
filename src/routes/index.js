@@ -9,6 +9,11 @@ function setupRoutes(app) {
   router.post('/webhook', authenticateWebhook, handlers.webhook);
   router.post('/process-batch', handlers.processBatch);
   router.get('/stats', handlers.stats);
+  
+  // Allow both GET and POST for debug endpoint
+  router.route('/debug/michelle/:commentId')
+    .get(handlers.debugMichelle)
+    .post(handlers.debugMichelle);
 
   app.use('/', router);
 }

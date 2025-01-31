@@ -11,12 +11,24 @@ class WordPressService {
     const { username, password, apiUrl } = config.wordpress;
 
     this.client = axios.create({
-      baseURL: apiUrl.replace(/\/$/, ''),
+      baseURL: apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl,
       headers: {
         'Authorization': `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`,
         'Content-Type': 'application/json'
       }
     });
+  }
+
+  async getComment(commentId) {
+    if (!this.client) this.setup();
+
+    try {
+      const { data } = await this.client.get(`/comments/${commentId}`);
+      return data;
+    } catch (error) {
+      console.error(`Failed to fetch comment ${commentId}:`, error.message);
+      throw error;
+    }
   }
 
   async getUnprocessedComments(batchSize) {
